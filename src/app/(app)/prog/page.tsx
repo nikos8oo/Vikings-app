@@ -5,7 +5,7 @@ import { fmtDate, fmtScore, SOURCE_LABEL, todayParis } from "@/lib/format";
 import { requireMe } from "@/lib/session";
 import type { Result, Workout } from "@/lib/types";
 import { Empty, SourceTag } from "@/components/ui";
-import { colorHex } from "@/lib/colors";
+import { blockStyle, colorHex } from "@/lib/colors";
 
 export const metadata: Metadata = { title: "Prog" };
 
@@ -31,7 +31,7 @@ export default async function Prog({ searchParams }: { searchParams: Promise<{ s
   const card = (w: Workout) => {
     const r = myScore.get(w.id);
     return (
-      <Link key={w.id} href={`/prog/${w.id}`} className="card flex items-start gap-4 p-4 transition hover:border-line-2" style={colorHex(w.color) ? { boxShadow: `inset 4px 0 0 ${colorHex(w.color)}` } : undefined}>
+      <Link key={w.id} href={`/prog/${w.id}`} className="card flex items-start gap-4 p-4 transition hover:border-line-2" style={blockStyle(w.color)}>
         <div className="w-12 shrink-0 text-center">
           {w.source === "benchmark" ? <span className="display text-2xl text-dim">B</span> : (
             <>

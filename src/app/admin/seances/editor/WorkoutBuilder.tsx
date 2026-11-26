@@ -6,7 +6,7 @@ import { FormMessage, Submit } from "@/components/forms";
 import { CATEGORY_LABEL, fmtTime, parseTime } from "@/lib/format";
 import { computeVolume, describe, FORMATS, RESULT_BY, repsPerRound, TEMPLATES, templateOf, type ResultBy, type Template, type Format, type Item, type Rx, type SetRx } from "@/lib/prescription";
 import { SUBTRACKS } from "@/lib/tracks";
-import { BLOCK_COLORS, colorHex } from "@/lib/colors";
+import { BLOCK_COLORS, blockStyle } from "@/lib/colors";
 import type { Workout } from "@/lib/types";
 
 export type Mv = { id: string; name: string; category: string; metric: string };
@@ -289,7 +289,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
       {/* Aperçu */}
       <aside className="grid gap-3 lg:sticky lg:top-[104px] lg:max-h-[calc(100dvh-120px)] lg:overflow-y-auto no-scrollbar">
         <h2 className="ios-head">Aperçu athlète</h2>
-        <div className="ios-group relative p-5" style={colorHex(color) ? { boxShadow: `inset 4px 0 0 ${colorHex(color)}` } : undefined}>
+        <div className="ios-group relative p-5" style={blockStyle(color)}>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{FORMATS[rx.format].label}{block ? ` · Partie ${block}` : ""}{weeks.length > 1 ? ` · S${wk + 1} (${short(addDays(date, 7 * wk))})` : ""}</p>
           {preview ? <p className="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-fog">{preview}</p>
             : <p className="mt-3 text-[14px] text-dim">Ajoute un mouvement pour voir la séance.</p>}

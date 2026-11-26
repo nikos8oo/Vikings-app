@@ -4,7 +4,7 @@ import { computeLevel, getMovements, getResults, levelHistory } from "@/lib/data
 import { db } from "@/lib/db";
 import { fmtDate, fmtMetric, fmtScore, todayParis } from "@/lib/format";
 import { formatLabel } from "@/lib/prescription";
-import { colorHex } from "@/lib/colors";
+import { blockStyle, colorHex } from "@/lib/colors";
 import { DEFAULT_TRACKS, FOLLOWABLE, parseTrack, sourcesOf, trackKey } from "@/lib/tracks";
 import { monthGrid, TrainingCalendar, type DayMark } from "@/components/TrainingCalendar";
 import { TrackPicker } from "@/components/TrackPicker";
@@ -78,7 +78,7 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
                 {list.map((w) => {
                   const r = myW.get(w.id);
                   return (
-                    <article key={w.id} className="card overflow-hidden" style={colorHex(w.color) ? { boxShadow: `inset 4px 0 0 ${colorHex(w.color)}` } : undefined}>
+                    <article key={w.id} className="card overflow-hidden" style={blockStyle(w.color)}>
                       <div className="border-b border-line bg-white/[0.02] px-4 py-2.5">
                         <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-fog">
                           {w.block ? <span className="text-lime">{w.block}. </span> : null}{w.title}
@@ -96,7 +96,7 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
                             <span className="font-bold tabular-nums text-lime">{w.score_type === "none" ? "Fait" : fmtScore(Number(r.value), w.score_type, { rpr: w.reps_per_round, capped: r.capped })}</span>
                           </Link>
                         ) : (
-                          <Link href={`/prog/${w.id}`} className="btn w-full bg-fog py-3 text-ink hover:bg-white">＋ Logger</Link>
+                          <Link href={`/prog/${w.id}`} className="btn w-full bg-fog py-3 text-canvas hover:opacity-90">＋ Logger</Link>
                         )}
                       </div>
                     </article>

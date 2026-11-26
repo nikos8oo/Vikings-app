@@ -26,7 +26,7 @@ export function TierScale({ score }: { score: number | null }) {
           })}
         </div>
         {score != null && (
-          <div className="absolute -top-1.5 h-5 w-1 rounded-full bg-fog shadow-[0_0_0_3px_#050505]" style={{ left: `calc(${score}% - 2px)` }} />
+          <div className="absolute -top-1.5 h-5 w-1 rounded-full bg-fog shadow-[0_0_0_3px_var(--color-canvas)]" style={{ left: `calc(${score}% - 2px)` }} />
         )}
       </div>
       <div className="relative mt-2 h-3 text-[10px] font-semibold uppercase tracking-wider text-dim">
