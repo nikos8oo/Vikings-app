@@ -28,7 +28,7 @@ export async function WeekBoard({ program, anchor }: { program: "competition" | 
   const planning = (d: string) => `/admin/seances?p=${encodeURIComponent(program === "competition" ? "competition" : "aff:crossfit")}&d=${d}`;
 
   return (
-    <section className="card p-4 sm:p-5">
+    <section className="card relative left-1/2 w-[calc(100vw-2rem)] max-w-[1800px] -translate-x-1/2 p-4 sm:p-5 md:w-[calc(100vw-3rem)]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="kicker">Programmation de la semaine</p>
@@ -46,12 +46,12 @@ export async function WeekBoard({ program, anchor }: { program: "competition" | 
       </div>
 
       <div className="no-scrollbar -mx-1 mt-4 overflow-x-auto px-1 pb-1">
-        <div className="grid min-w-[900px] grid-cols-7 gap-2">
+        <div className="grid min-w-[900px] grid-cols-7 gap-2.5">
           {days.map((d, i) => {
             const list = workouts.filter((w) => w.workout_date === d);
             const isToday = d === today;
             return (
-              <div key={d} className={`flex min-h-[220px] flex-col rounded-[14px] border p-1.5 ${isToday ? "border-lime/40 bg-lime/[0.03]" : "border-line bg-panel/40"}`}>
+              <div key={d} className={`flex min-h-[260px] flex-col rounded-[14px] border p-1.5 ${isToday ? "border-lime/40 bg-lime/[0.03]" : "border-line bg-panel/40"}`}>
                 <div className="flex items-baseline justify-between px-1.5 pb-1.5 pt-0.5">
                   <span className={`text-[11px] font-semibold uppercase tracking-wider ${isToday ? "text-lime" : "text-muted"}`}>{WD[i]}</span>
                   <span className={`text-[17px] font-bold tabular-nums ${isToday ? "text-lime" : "text-fog"}`}>{Number(d.slice(8))}</span>
