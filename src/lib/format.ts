@@ -48,7 +48,7 @@ export function fmtScore(v: number, type: ScoreType, opts: { rpr?: number | null
 }
 
 export const SOURCE_LABEL: Record<string, string> = {
-  vikings: "Vikings",
+  vikings: "Compétition",
   competition: "Compétition",
   affiliates: "Affiliates",
   qualif: "Qualif",

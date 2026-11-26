@@ -4,6 +4,7 @@ import { computeLevel, getMovements, getResults, levelHistory } from "@/lib/data
 import { db } from "@/lib/db";
 import { fmtDate, fmtMetric, fmtScore, todayParis } from "@/lib/format";
 import { formatLabel } from "@/lib/prescription";
+import { DEFAULT_TRACKS, FOLLOWABLE, parseTrack, sourcesOf, trackKey } from "@/lib/tracks";
 import { monthGrid, TrainingCalendar, type DayMark } from "@/components/TrainingCalendar";
 import { TrackPicker } from "@/components/TrackPicker";
 import { DOMAINS, nextTier, tierOf } from "@/lib/scoring";
@@ -14,19 +15,18 @@ import { Empty, ScoreBadge, SectionTitle, SourceTag, TierScale } from "@/compone
 
 export const metadata: Metadata = { title: "Accueil" };
 
-const TRACK_ORDER = ["vikings", "affiliates", "competition", "qualif"];
 
 export default async function Accueil({ searchParams }: { searchParams: Promise<{ bienvenue?: string; d?: string }> }) {
   const me = await requireMe();
   const { bienvenue, d } = await searchParams;
   const today = todayParis();
   const selected = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : today;
-  const tracks = me.tracks?.length ? me.tracks : TRACK_ORDER;
+  const tracks = (me.tracks?.length ? me.tracks : DEFAULT_TRACKS).filter((t) => FOLLOWABLE.includes(t));
   const { from, to } = monthGrid(selected);
   const [results, movements, monthRes] = await Promise.all([
     getResults(me.id),
     getMovements(),
-    db().from("workouts").select("*").eq("published", true).in("source", tracks).gte("workout_date", from).lte("workout_date", to)
+    db().from("workouts").select("*").eq("published", true).in("source", sourcesOf(tracks)).gte("workout_date", from).lte("workout_date", to)
       .order("block", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
   ]);
   const level = await computeLevel(me, results);
@@ -37,7 +37,7 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
   const tested = new Set(level.tests.map((t) => t.id));
   const toTest = movements.filter((m) => m.anchors_m && Number(m.weight_in_level) >= 1 && !tested.has(m.id)).slice(0, 6);
   const recent = results.filter((r) => r.movement_id).slice(0, 5);
-  const monthW = (monthRes.data ?? []) as Workout[];
+  const monthW = ((monthRes.data ?? []) as Workout[]).filter((w) => tracks.includes(trackKey(w)));
   const myW = new Map<string, Result>();
   for (const r of results) if (r.workout_id && !myW.has(r.workout_id)) myW.set(r.workout_id, r);
   const marks: Record<string, DayMark> = {};
@@ -47,7 +47,7 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
     if (myW.has(w.id)) mk.done++;
   }
   const dayW = monthW.filter((w) => w.workout_date === selected);
-  const byTrack = TRACK_ORDER.filter((t) => tracks.includes(t)).map((t) => ({ t, list: dayW.filter((w) => w.source === t) })).filter((g) => g.list.length);
+  const byTrack = FOLLOWABLE.filter((t) => tracks.includes(t)).map((t) => ({ t, list: dayW.filter((w) => trackKey(w) === t) })).filter((g) => g.list.length);
 
   return (
     <div className="grid gap-6">
@@ -70,7 +70,7 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
           {byTrack.length ? byTrack.map(({ t, list }) => (
             <section key={t}>
               <div className="mb-2 flex items-center gap-2 px-1">
-                <SourceTag source={t} />
+                <SourceTag {...parseTrack(t)} />
                 <span className="text-[12px] text-dim">{list.length} séance{list.length > 1 ? "s" : ""}</span>
               </div>
               <div className="grid gap-3">

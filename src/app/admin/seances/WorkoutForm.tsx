@@ -33,9 +33,8 @@ export function WorkoutForm({ w, movements, today }: { w?: Workout; movements: M
         <div><label className="label">Date</label><input name="workout_date" type="date" defaultValue={w?.workout_date ?? today} className="field" /></div>
         <div>
           <label className="label">Source</label>
-          <select name="source" defaultValue={w?.source ?? "vikings"} className="field">
-            <option value="vikings">Prog Vikings</option>
-            <option value="affiliates">Vikings Affiliates</option>
+          <select name="source" defaultValue={w?.source === "vikings" ? "competition" : w?.source ?? "competition"} className="field">
+            <option value="affiliates">Vikings Affiliates (CrossFit)</option>
             <option value="competition">Vikings Compétition</option>
             <option value="qualif">WOD de qualif</option>
             <option value="benchmark">Benchmark</option>

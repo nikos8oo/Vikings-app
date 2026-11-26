@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { db, must } from "@/lib/db";
-import { SOURCE_LABEL, todayParis } from "@/lib/format";
+import { todayParis } from "@/lib/format";
+import { parseTrack, TRACK_KEYS, trackLabel } from "@/lib/tracks";
 import { formatLabel } from "@/lib/prescription";
 import type { Workout } from "@/lib/types";
 import { monthGrid } from "@/components/TrainingCalendar";
@@ -10,7 +11,6 @@ import { DuplicateNextDay, TrackSwitch } from "./PlannerControls";
 
 export const metadata: Metadata = { title: "Planning" };
 
-const TRACKS = ["vikings", "affiliates", "competition", "qualif", "benchmark"];
 const WD = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
 
@@ -27,7 +27,9 @@ type SP = { p?: string; v?: string; d?: string };
 export default async function Planning({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const jar = await cookies();
-  const track = TRACKS.includes(sp.p ?? "") ? sp.p! : TRACKS.includes(jar.get("va_admin_track")?.value ?? "") ? jar.get("va_admin_track")!.value : "vikings";
+  const saved = decodeURIComponent(jar.get("va_admin_track")?.value ?? "");
+  const track = TRACK_KEYS.includes(sp.p ?? "") ? sp.p! : TRACK_KEYS.includes(saved) ? saved : "competition";
+  const { source, subtrack } = parseTrack(track);
   const view = sp.v === "month" ? "month" : "week";
   const today = todayParis();
   const anchor = sp.d && /^\d{4}-\d{2}-\d{2}$/.test(sp.d) ? sp.d : today;
@@ -35,7 +37,7 @@ export default async function Planning({ searchParams }: { searchParams: Promise
   const days = view === "week" ? Array.from({ length: 7 }, (_, i) => addDays(weekStart(anchor), i)) : monthGrid(anchor).grid.map((g) => g.date);
   const from = days[0], to = days[days.length - 1];
   const [workouts, counts] = await Promise.all([
-    db().from("workouts").select("*").eq("source", track).gte("workout_date", from).lte("workout_date", to)
+    (subtrack ? db().from("workouts").select("*").eq("source", source).eq("subtrack", subtrack) : db().from("workouts").select("*").eq("source", source)).gte("workout_date", from).lte("workout_date", to)
       .order("block", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }).then((r) => must(r) as Workout[]),
     db().from("results").select("workout_id").not("workout_id", "is", null).gte("performed_on", addDays(from, -1)).then((r) => (r.data ?? []) as { workout_id: string }[]),
   ]);
@@ -48,7 +50,7 @@ export default async function Planning({ searchParams }: { searchParams: Promise
   const prev = view === "week" ? addDays(anchor, -step) : (() => { const [y, m] = anchor.split("-").map(Number); return m === 1 ? `${y - 1}-12-01` : `${y}-${String(m - 1).padStart(2, "0")}-01`; })();
   const next = view === "week" ? addDays(anchor, step) : (() => { const [y, m] = anchor.split("-").map(Number); return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`; })();
   const url = (o: Partial<SP>) => { const q = new URLSearchParams({ p: track, v: view, d: anchor, ...o } as Record<string, string>); return `/admin/seances?${q}`; };
-  const addUrl = (d: string) => `/admin/seances/nouvelle?source=${track}&date=${d}&block=${nextBlock(byDay.get(d) ?? [])}`;
+  const addUrl = (d: string) => `/admin/seances/nouvelle?track=${encodeURIComponent(track)}&date=${d}&block=${nextBlock(byDay.get(d) ?? [])}`;
   const [ay, am] = anchor.split("-").map(Number);
   const title = view === "week" ? `Semaine du ${label(from)} au ${label(to)}` : `${["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"][am - 1]} ${ay}`;
   const total = workouts.length;
@@ -58,7 +60,7 @@ export default async function Planning({ searchParams }: { searchParams: Promise
       {/* En-tête */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[13px] font-medium text-muted">Programme · {SOURCE_LABEL[track]}</p>
+          <p className="text-[13px] font-medium text-muted">{trackLabel(track, true)}</p>
           <h1 className={`mt-1 text-[28px] font-bold tracking-tight text-fog sm:text-[32px] ${view === "month" ? "capitalize" : ""}`}>{title}</h1>
           <p className="mt-0.5 text-[13px] text-dim">{total} bloc{total > 1 ? "s" : ""} programmé{total > 1 ? "s" : ""}</p>
         </div>

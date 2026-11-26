@@ -1,3 +1,4 @@
+import { trackKey, trackLabel } from "@/lib/tracks";
 import Link from "next/link";
 import { TIERS, tierOf } from "@/lib/scoring";
 
@@ -50,11 +51,11 @@ export function Empty({ children }: { children: React.ReactNode }) {
   return <div className="rounded-2xl border border-dashed border-line-2 p-6 text-center text-sm text-muted">{children}</div>;
 }
 
-export function SourceTag({ source }: { source: string }) {
+export function SourceTag({ source, subtrack }: { source: string; subtrack?: string | null }) {
   const map: Record<string, [string, string]> = {
-    vikings: ["Vikings", "bg-bleu/20 text-[#9fb5ff]"],
+    vikings: ["Compétition", "bg-lime/15 text-lime"],
     competition: ["Compétition", "bg-lime/15 text-lime"],
-    affiliates: ["Affiliates", "bg-white/10 text-fog"],
+    affiliates: [`Affiliates · ${trackLabel(trackKey({ source: "affiliates", subtrack }))}`, "bg-bleu/20 text-[#9fb5ff]"],
     qualif: ["Qualif", "bg-lime text-ink"],
     benchmark: ["Benchmark", "bg-white/5 text-muted"],
   };

@@ -25,7 +25,7 @@ export default async function Seances({ searchParams }: { searchParams: Promise<
         <Link href="/admin/seances/nouvelle" className="btn-lime">+ Nouvelle séance</Link>
       </div>
       <div className="no-scrollbar flex gap-2 overflow-x-auto">
-        {["all", "vikings", "affiliates", "competition", "qualif", "benchmark"].map((f) => (
+        {["all", "competition", "affiliates", "qualif", "benchmark"].map((f) => (
           <Link key={f} href={f === "all" ? "/admin/seances/liste" : `/admin/seances/liste?s=${f}`} className={`chip shrink-0 ${s === f ? "border-bleu bg-bleu text-white" : ""}`}>
             {f === "all" ? "Toutes" : SOURCE_LABEL[f]}
           </Link>
@@ -41,7 +41,7 @@ export default async function Seances({ searchParams }: { searchParams: Promise<
               <tr key={w.id} className="hover:bg-white/[0.03]">
                 <td className="whitespace-nowrap px-4 py-3 text-muted">{fmtDate(w.workout_date, { day: "numeric", month: "short", year: "2-digit" })}</td>
                 <td className="px-4"><Link href={`/admin/seances/${w.id}`} className="font-semibold hover:text-lime">{w.block ? `${w.block}. ` : ""}{w.title}</Link>{w.format && <span className="ml-2 text-[11px] text-muted">{formatLabel(w)}</span>}{w.counts_in_level && <span className="ml-2 text-[10px] font-bold text-lime">● NIVEAU</span>}</td>
-                <td className="px-4"><SourceTag source={w.source} /></td>
+                <td className="px-4"><SourceTag source={w.source} subtrack={w.subtrack} /></td>
                 <td className="px-4 tabular-nums">{n.get(w.id) ?? 0}</td>
                 <td className="px-4">{w.published ? <span className="text-lime">Publiée</span> : <span className="text-dim">Brouillon</span>}</td>
               </tr>

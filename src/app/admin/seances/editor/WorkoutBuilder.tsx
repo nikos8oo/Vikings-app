@@ -5,11 +5,12 @@ import { saveWorkout } from "@/app/actions/admin";
 import { FormMessage, Submit } from "@/components/forms";
 import { CATEGORY_LABEL, fmtTime, parseTime } from "@/lib/format";
 import { computeVolume, describe, FORMATS, RESULT_BY, repsPerRound, TEMPLATES, templateOf, type ResultBy, type Template, type Format, type Item, type Rx, type SetRx } from "@/lib/prescription";
+import { SUBTRACKS } from "@/lib/tracks";
 import type { Workout } from "@/lib/types";
 
 export type Mv = { id: string; name: string; category: string; metric: string };
 
-const SOURCES = [["vikings", "Vikings"], ["affiliates", "Affiliates"], ["competition", "Compét"], ["qualif", "Qualif"], ["benchmark", "Benchmark"]] as const;
+const SOURCES = [["competition", "Compétition"], ["affiliates", "Affiliates"], ["qualif", "Qualif"], ["benchmark", "Benchmark"]] as const;
 const BLOCKS = ["", "A", "B", "C", "D"];
 const LV = [["100", "Games"], ["90", "Élite"], ["75", "RX"], ["60", "Inter"], ["40", "Fitness"]] as const;
 const POPULAR = ["back-squat", "deadlift", "clean", "snatch", "thruster", "kipping-pull-up", "double-under", "wall-ball", "row", "run", "burpee", "toes-to-bar"];
@@ -26,13 +27,14 @@ const num = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", "."))
 const show = (v: number | null | undefined) => (v == null ? "" : String(v).replace(".", ","));
 
 export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
-  w?: Workout; movements: Mv[]; today: string; defaults?: { date?: string; source?: string; block?: string }; returnTo?: string;
+  w?: Workout; movements: Mv[]; today: string; defaults?: { date?: string; source?: string; subtrack?: string | null; block?: string }; returnTo?: string;
 }) {
   const [state, action] = useActionState(saveWorkout, null);
   const mmap = useMemo(() => new Map(movements.map((m) => [m.id, m])), [movements]);
   const nameOf = (id: string) => mmap.get(id)?.name ?? id;
 
-  const [source, setSource] = useState<string>(w?.source ?? defaults?.source ?? "vikings");
+  const [source, setSource] = useState<string>(w?.source === "vikings" ? "competition" : w?.source ?? defaults?.source ?? "competition");
+  const [subtrack, setSubtrack] = useState<string>(w?.subtrack ?? defaults?.subtrack ?? "crossfit");
   const [block, setBlock] = useState<string>(w?.block ?? defaults?.block ?? "");
   const initTpl = w?.format ? templateOf({ format: w.format, variant: w.variant ?? null }) : null;
   const [group, setGroup] = useState<"single" | "multi">(initTpl?.group ?? "single");
@@ -113,6 +115,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
       <input type="hidden" name="rx" value={JSON.stringify(weeks[0])} />
       <input type="hidden" name="rx_weeks" value={JSON.stringify(weeks.slice(1))} />
       <input type="hidden" name="source" value={source} />
+      <input type="hidden" name="subtrack" value={source === "affiliates" ? subtrack : ""} />
       <input type="hidden" name="block" value={block} />
       {returnTo && <input type="hidden" name="return" value={returnTo} />}
 
@@ -128,9 +131,14 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
             <div className="ios-row justify-between"><span className="ios-label">Partie</span>
               <div className="seg">{BLOCKS.map((b) => <button key={b || "-"} type="button" aria-pressed={block === b} onClick={() => setBlock(b)} className="seg-btn min-w-9">{b || "—"}</button>)}</div>
             </div>
-            <div className="ios-row flex-wrap justify-between gap-y-2"><span className="ios-label">Piste</span>
+            <div className="ios-row flex-wrap justify-between gap-y-2"><span className="ios-label">Programme</span>
               <div className="seg w-full sm:w-auto">{SOURCES.map(([v, l]) => <button key={v} type="button" aria-pressed={source === v} onClick={() => setSource(v)} className="seg-btn px-1.5 text-[12px] sm:px-3 sm:text-[13px]">{l}</button>)}</div>
             </div>
+            {source === "affiliates" && (
+              <div className="ios-row flex-wrap justify-between gap-y-2"><span className="ios-label">Piste Affiliates</span>
+                <div className="seg w-full sm:w-auto">{SUBTRACKS.map((st) => <button key={st.id} type="button" aria-pressed={subtrack === st.id} onClick={() => setSubtrack(st.id)} className="seg-btn px-1.5 text-[12px] sm:px-2.5 sm:text-[13px]">{st.label}</button>)}</div>
+              </div>
+            )}
           </div>
         </section>
 

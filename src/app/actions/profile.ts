@@ -29,12 +29,12 @@ export async function updateProfile(_: ProfileState, f: FormData): Promise<Profi
   return { ok: "Profil mis à jour." };
 }
 
-const TRACKS = ["vikings", "affiliates", "competition", "qualif"];
+import { DEFAULT_TRACKS, FOLLOWABLE } from "@/lib/tracks";
 
 /** Programmes suivis (affichés sur le calendrier de l'accueil). */
 export async function updateTracks(tracks: string[]) {
   const me = await requireMe();
-  const clean = [...new Set(tracks.filter((t) => TRACKS.includes(t)))];
-  await db().from("athletes").update({ tracks: clean.length ? clean : TRACKS }).eq("id", me.id);
+  const clean = [...new Set(tracks.filter((t) => FOLLOWABLE.includes(t)))];
+  await db().from("athletes").update({ tracks: clean.length ? clean : DEFAULT_TRACKS }).eq("id", me.id);
   revalidatePath("/", "layout");
 }

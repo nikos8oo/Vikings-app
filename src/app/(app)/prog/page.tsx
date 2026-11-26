@@ -8,7 +8,7 @@ import { Empty, SourceTag } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Prog" };
 
-const FILTERS = ["all", "vikings", "competition", "affiliates", "qualif", "benchmark"] as const;
+const FILTERS = ["all", "competition", "affiliates", "qualif", "benchmark"] as const;
 
 export default async function Prog({ searchParams }: { searchParams: Promise<{ s?: string }> }) {
   const me = await requireMe();
@@ -41,7 +41,7 @@ export default async function Prog({ searchParams }: { searchParams: Promise<{ s
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2"><SourceTag source={w.source} />{w.counts_in_level && <span className="text-[10px] font-bold uppercase tracking-wider text-lime">● Niveau</span>}</div>
+          <div className="flex items-center gap-2"><SourceTag source={w.source} subtrack={w.subtrack} />{w.counts_in_level && <span className="text-[10px] font-bold uppercase tracking-wider text-lime">● Niveau</span>}</div>
           <p className="display mt-2 truncate text-xl text-fog">{w.block ? <span className="mr-2 text-lime">{w.block}.</span> : null}{w.title}</p>
           <p className="mt-1 line-clamp-2 whitespace-pre-line text-xs text-muted">{w.description}</p>
         </div>

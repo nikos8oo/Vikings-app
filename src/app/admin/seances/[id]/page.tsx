@@ -7,6 +7,7 @@ import { fmtScore, todayParis } from "@/lib/format";
 import type { Workout } from "@/lib/types";
 import { WorkoutForm } from "../WorkoutForm";
 import { WorkoutBuilder } from "../editor/WorkoutBuilder";
+import { trackKey } from "@/lib/tracks";
 import { DeleteWorkoutButton } from "./DeleteWorkoutButton";
 
 export const metadata: Metadata = { title: "Séance" };
@@ -20,7 +21,7 @@ export default async function EditSeance({ params, searchParams }: { params: Pro
   const w = data as Workout;
   const [movements, board] = await Promise.all([getMovements(), leaderboard(w)]);
   const mvs = movements.map((m) => ({ id: m.id, name: m.name, category: m.category, metric: m.metric }));
-  const back = `/admin/seances?p=${w.source}&d=${w.workout_date}`;
+  const back = `/admin/seances?p=${encodeURIComponent(trackKey(w))}&d=${w.workout_date}`;
   if (w.format) return (
     <div className="mx-auto grid max-w-5xl gap-6">
       <div>

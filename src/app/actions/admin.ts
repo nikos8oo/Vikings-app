@@ -11,7 +11,8 @@ import type { Anchors } from "@/lib/types";
 export type AdminState = { error?: string; ok?: string } | null;
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 const KEYS = ["100", "90", "75", "60", "40"] as const;
-const SOURCES = ["vikings", "competition", "affiliates", "qualif", "benchmark"];
+const SOURCES = ["competition", "affiliates", "qualif", "benchmark"];
+const SUBS = ["crossfit", "hyrox", "gym", "halterophilie", "fbb", "engine"];
 const SCORE_TYPES = ["time", "rounds_reps", "reps", "load", "calories", "distance", "none"];
 
 /** Lit un barème depuis le formulaire (préfixe am_ / af_). Vide = pas de barème. */
@@ -86,6 +87,7 @@ export async function saveWorkout(_: AdminState, f: FormData): Promise<AdminStat
     rep_scheme: rx?.rep_scheme?.length ? rx.rep_scheme : null,
     emom_mode: rx ? rx.emom_mode ?? null : null,
     block: str(f, "block").slice(0, 24) || null,
+    subtrack: source === "affiliates" ? (SUBS.includes(str(f, "subtrack")) ? str(f, "subtrack") : "crossfit") : null,
     variant: rx?.variant ?? null,
     anchors_m: am,
     anchors_f: af,

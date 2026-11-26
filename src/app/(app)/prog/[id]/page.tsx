@@ -52,7 +52,7 @@ export default async function WorkoutPage({ params }: P) {
       <div className="rise">
         <Link href="/prog" className="text-xs font-semibold text-muted">← La prog</Link>
         <div className="mt-3 flex items-center gap-2">
-          <SourceTag source={w.source} />
+          <SourceTag source={w.source} subtrack={w.subtrack} />
           {w.source !== "benchmark" && <span className="text-xs text-dim">{fmtDate(w.workout_date, { weekday: "long", day: "numeric", month: "long" })}</span>}
         </div>
         <h1 className="display mt-2 text-5xl text-fog">{w.title}</h1>

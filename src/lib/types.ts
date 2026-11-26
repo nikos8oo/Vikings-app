@@ -7,6 +7,7 @@ export type Better = "higher" | "lower";
 export type Anchors = Record<"100" | "90" | "75" | "60" | "40", number>;
 export type Division = "rx" | "scaled" | "foundation";
 export type Source = "vikings" | "competition" | "affiliates" | "qualif" | "benchmark";
+export type { Subtrack } from "./tracks";
 export type ScoreType = "time" | "rounds_reps" | "reps" | "load" | "calories" | "distance" | "none";
 
 export type Box = { id: string; name: string; city: string | null; is_affiliate: boolean };
@@ -74,6 +75,7 @@ export type Workout = {
   emom_mode: "all" | "alternate" | null;
   block: string | null;
   variant?: string | null;
+  subtrack?: string | null;
 };
 
 export type Result = {
