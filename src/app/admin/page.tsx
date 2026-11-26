@@ -8,19 +8,25 @@ import { ATHLETE_COLS } from "@/lib/session";
 import type { Athlete } from "@/lib/types";
 import { SectionTitle } from "@/components/ui";
 import { WeekBoard } from "./WeekBoard";
+import { DemoPanel } from "./DemoPanel";
+import { requireStaff } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Admin" };
+export const maxDuration = 60; // génération de la démo
 
 export default async function AdminHome({ searchParams }: { searchParams: Promise<{ wp?: string; wd?: string }> }) {
   const { wp, wd } = await searchParams;
+  const me = await requireStaff();
   const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
-  const [athletes, boxes, recentRes, weekCount, wCount, mmap] = await Promise.all([
+  const [athletes, boxes, recentRes, weekCount, wCount, mmap, demoW, demoA] = await Promise.all([
     fetchAll<Athlete>("athletes", ATHLETE_COLS),
     getBoxes(),
     db().from("results").select("id,value,performed_on,movement_id,workout_id,athletes(first_name,last_name),workouts(title)").order("created_at", { ascending: false }).limit(12),
     db().from("results").select("id", { count: "exact", head: true }).gte("created_at", weekAgo),
     db().from("workouts").select("id", { count: "exact", head: true }).neq("source", "benchmark"),
     getMovementMap(),
+    db().from("workouts").select("id", { count: "exact", head: true }).eq("is_demo", true),
+    db().from("athletes").select("id", { count: "exact", head: true }).eq("is_demo", true),
   ]);
   const levels = await allLevels(athletes);
   const ranked = athletes.map((a) => ({ a, lv: levels.get(a.id)! })).filter((x) => x.lv.global != null);
@@ -52,6 +58,8 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
       </div>
 
       <WeekBoard program={wp === "affiliates" ? "affiliates" : "competition"} anchor={wd} />
+
+      {me.role === "admin" && <DemoPanel blocks={demoW.count ?? 0} athletes={demoA.count ?? 0} />}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {stats.map(([l, v]) => (

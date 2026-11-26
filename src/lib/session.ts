@@ -83,3 +83,28 @@ export function isAdminEmail(email: string) {
     .filter(Boolean)
     .includes(email.toLowerCase());
 }
+
+/* ---------- Vue « athlète démo » (l'admin emprunte un compte démo, puis revient) ---------- */
+const BACK = "va_back";
+
+export async function startImpersonation(targetUid: string) {
+  const jar = await cookies();
+  const current = jar.get(COOKIE)?.value;
+  if (!current) return;
+  jar.set(BACK, current, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 86400 });
+  await setSession(targetUid);
+}
+
+export async function endImpersonation(): Promise<boolean> {
+  const jar = await cookies();
+  const back = jar.get(BACK)?.value;
+  if (!back) return false;
+  try { await jwtVerify(back, key()); } catch { jar.delete(BACK); return false; }
+  jar.set(COOKIE, back, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: DAYS * 86400 });
+  jar.delete(BACK);
+  return true;
+}
+
+export async function isImpersonating() {
+  return Boolean((await cookies()).get(BACK)?.value);
+}
