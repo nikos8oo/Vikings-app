@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { FORMATS } from "@/lib/prescription";
 import Link from "next/link";
 import { db, must } from "@/lib/db";
 import { fmtDate, SOURCE_LABEL } from "@/lib/format";
@@ -39,7 +40,7 @@ export default async function Seances({ searchParams }: { searchParams: Promise<
             {workouts.map((w) => (
               <tr key={w.id} className="hover:bg-white/[0.03]">
                 <td className="whitespace-nowrap px-4 py-3 text-muted">{fmtDate(w.workout_date, { day: "numeric", month: "short", year: "2-digit" })}</td>
-                <td className="px-4"><Link href={`/admin/seances/${w.id}`} className="font-semibold hover:text-lime">{w.title}</Link>{w.counts_in_level && <span className="ml-2 text-[10px] font-bold text-lime">● NIVEAU</span>}</td>
+                <td className="px-4"><Link href={`/admin/seances/${w.id}`} className="font-semibold hover:text-lime">{w.block ? `${w.block}. ` : ""}{w.title}</Link>{w.format && <span className="ml-2 text-[11px] text-muted">{FORMATS[w.format].label}</span>}{w.counts_in_level && <span className="ml-2 text-[10px] font-bold text-lime">● NIVEAU</span>}</td>
                 <td className="px-4"><SourceTag source={w.source} /></td>
                 <td className="px-4 tabular-nums">{n.get(w.id) ?? 0}</td>
                 <td className="px-4">{w.published ? <span className="text-lime">Publiée</span> : <span className="text-dim">Brouillon</span>}</td>

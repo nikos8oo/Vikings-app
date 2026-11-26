@@ -14,7 +14,7 @@ export default async function Prog({ searchParams }: { searchParams: Promise<{ s
   const me = await requireMe();
   const s = (await searchParams).s ?? "all";
   const today = todayParis();
-  let q = db().from("workouts").select("*").eq("published", true).order("workout_date", { ascending: false }).order("created_at", { ascending: false }).limit(80);
+  let q = db().from("workouts").select("*").eq("published", true).order("workout_date", { ascending: false }).order("block", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }).limit(80);
   if (s !== "all") q = q.eq("source", s);
   else q = q.neq("source", "benchmark");
   const [workouts, mine] = await Promise.all([
@@ -42,7 +42,7 @@ export default async function Prog({ searchParams }: { searchParams: Promise<{ s
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2"><SourceTag source={w.source} />{w.counts_in_level && <span className="text-[10px] font-bold uppercase tracking-wider text-lime">● Niveau</span>}</div>
-          <p className="display mt-2 truncate text-xl text-fog">{w.title}</p>
+          <p className="display mt-2 truncate text-xl text-fog">{w.block ? <span className="mr-2 text-lime">{w.block}.</span> : null}{w.title}</p>
           <p className="mt-1 line-clamp-2 whitespace-pre-line text-xs text-muted">{w.description}</p>
         </div>
         {r ? (

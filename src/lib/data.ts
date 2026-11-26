@@ -163,3 +163,21 @@ export async function leaderboard(w: Workout): Promise<LeaderRow[]> {
     performed_on: r.performed_on,
   }));
 }
+
+/** Meilleure charge de l'athlète par mouvement (sert à convertir les % en kg). */
+export async function getMaxes(athleteId: string, movementIds: string[]): Promise<Record<string, number>> {
+  const ids = [...new Set(movementIds)].filter(Boolean);
+  if (!ids.length) return {};
+  const [{ data: mvs }, { data: res }] = await Promise.all([
+    db().from("movements").select("id,metric").in("id", ids),
+    db().from("results").select("movement_id,value").eq("athlete_id", athleteId).in("movement_id", ids),
+  ]);
+  const load = new Set((mvs ?? []).filter((m) => m.metric === "load").map((m) => m.id as string));
+  const out: Record<string, number> = {};
+  for (const r of (res ?? []) as { movement_id: string; value: number }[]) {
+    if (!load.has(r.movement_id)) continue;
+    const v = Number(r.value);
+    if (!out[r.movement_id] || v > out[r.movement_id]) out[r.movement_id] = v;
+  }
+  return out;
+}

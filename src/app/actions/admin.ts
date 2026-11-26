@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { parseNum, parseTime } from "@/lib/format";
 import { requireAdmin, requireStaff } from "@/lib/session";
+import { describe, FORMATS, repsPerRound, sanitizeRx, type Rx } from "@/lib/prescription";
 import type { Anchors } from "@/lib/types";
 
 export type AdminState = { error?: string; ok?: string } | null;
@@ -34,13 +35,29 @@ export async function saveWorkout(_: AdminState, f: FormData): Promise<AdminStat
   const me = await requireStaff();
   const id = str(f, "id");
   const title = str(f, "title");
-  const score_type = str(f, "score_type");
   const source = str(f, "source");
   if (!title) return { error: "Titre obligatoire." };
   if (!SOURCES.includes(source)) return { error: "Source invalide." };
+
+  // Séance structurée (éditeur) : la prescription arrive en JSON
+  let rx: Rx | null = null;
+  if (str(f, "rx")) {
+    let parsed: unknown;
+    try { parsed = JSON.parse(str(f, "rx")); } catch { return { error: "Séance illisible, recharge la page." }; }
+    const clean = sanitizeRx(parsed);
+    if (typeof clean === "string") return { error: clean };
+    rx = clean;
+    const ids = [...new Set(rx.items.map((i) => i.mv))];
+    const { data: known } = await db().from("movements").select("id,name").in("id", ids);
+    const names = new Map((known ?? []).map((m) => [m.id as string, m.name as string]));
+    if (names.size !== ids.length) return { error: "Un mouvement est inconnu." };
+    rx.items = rx.items.map((i) => ({ ...i }));
+    (f as FormData).set("description", describe(rx, (id) => names.get(id) ?? id));
+  }
+  const score_type = rx ? FORMATS[rx.format].score : str(f, "score_type");
   if (!SCORE_TYPES.includes(score_type)) return { error: "Type de score invalide." };
-  const better = score_type === "time" ? "lower" : "higher";
-  const cap = str(f, "time_cap") ? parseTime(str(f, "time_cap")) : null;
+  const better = rx ? FORMATS[rx.format].better : score_type === "time" ? "lower" : "higher";
+  const cap = rx ? rx.time_cap_s ?? null : str(f, "time_cap") ? parseTime(str(f, "time_cap")) : null;
   const am = readAnchors(f, "am_", score_type === "time");
   const af = readAnchors(f, "af_", score_type === "time");
   if (am === "invalid" || af === "invalid") return { error: "Barème : remplis les 5 paliers (ou aucun)." };
@@ -55,10 +72,18 @@ export async function saveWorkout(_: AdminState, f: FormData): Promise<AdminStat
     coach_notes: str(f, "coach_notes") || null,
     score_type,
     better,
-    reps_per_round: parseNum(str(f, "reps_per_round")) || null,
+    reps_per_round: rx ? (rx.format === "amrap" ? repsPerRound(rx) || null : null) : parseNum(str(f, "reps_per_round")) || null,
     time_cap_s: cap,
-    movement_id: str(f, "movement_id") || null,
-    movements: f.getAll("movements").map(String).filter(Boolean),
+    movement_id: rx ? (rx.format === "max" || (rx.format === "sets" && rx.items.length === 1) ? rx.items[0].mv : null) : str(f, "movement_id") || null,
+    movements: rx ? [...new Set(rx.items.map((i) => i.mv))] : f.getAll("movements").map(String).filter(Boolean),
+    format: rx?.format ?? null,
+    items: rx?.items ?? [],
+    rounds: rx?.rounds ?? null,
+    duration_s: rx?.duration_s ?? null,
+    interval_s: rx?.interval_s ?? null,
+    rep_scheme: rx?.rep_scheme?.length ? rx.rep_scheme : null,
+    emom_mode: rx ? rx.emom_mode ?? null : null,
+    block: str(f, "block").slice(0, 24) || null,
     anchors_m: am,
     anchors_f: af,
     counts_in_level: counts,

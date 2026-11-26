@@ -1,3 +1,5 @@
+import type { Detail, Format, Item, VolumeRow } from "./prescription";
+
 export type Sex = "M" | "F";
 export type Role = "athlete" | "coach" | "admin";
 export type Metric = "load" | "reps" | "time" | "distance" | "calories" | "height";
@@ -61,6 +63,15 @@ export type Workout = {
   counts_in_level: boolean;
   published: boolean;
   created_at: string;
+  // séance structurée (null = ancienne séance en texte libre)
+  format: Format | null;
+  items: Item[];
+  rounds: number | null;
+  duration_s: number | null;
+  interval_s: number | null;
+  rep_scheme: number[] | null;
+  emom_mode: "all" | "alternate" | null;
+  block: string | null;
 };
 
 export type Result = {
@@ -75,4 +86,7 @@ export type Result = {
   rpe: number | null;
   notes: string | null;
   created_at: string;
+  as_written?: boolean;
+  detail?: Detail | null;
+  volume?: VolumeRow[] | null;
 };
