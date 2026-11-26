@@ -58,7 +58,7 @@ export default async function Planning({ searchParams }: { searchParams: Promise
   const total = workouts.length;
 
   return (
-    <div className="relative left-1/2 w-[calc(100vw-2rem)] max-w-[1800px] -translate-x-1/2 md:w-[calc(100vw-3rem)]">
+    <div className="relative left-1/2 w-[calc(100vw-1rem)] max-w-[1900px] -translate-x-1/2 md:w-[calc(100vw-1.5rem)]">
       {/* En-tête */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -87,18 +87,18 @@ export default async function Planning({ searchParams }: { searchParams: Promise
 
       {view === "week" ? (
         /* ---------- Semaine : 7 colonnes plein écran ---------- */
-        <div className="no-scrollbar -mx-1 mt-5 overflow-x-auto px-1 pb-2">
-          <div className="grid min-w-[980px] grid-cols-7 gap-3">
+        <div className="no-scrollbar mt-4 overflow-x-auto pb-2">
+          <div className="grid min-w-[980px] grid-cols-7 gap-1.5">
             {days.map((d, i) => {
               const list = byDay.get(d) ?? [];
               const isToday = d === today;
               return (
-                <div key={d} className={`flex min-h-[60vh] flex-col rounded-[16px] border p-2 ${isToday ? "border-lime/40 bg-lime/[0.03]" : "border-line bg-panel/60"}`}>
+                <div key={d} className={`flex min-h-[60vh] flex-col rounded-[14px] border p-1 ${isToday ? "border-lime/40 bg-lime/[0.03]" : "border-line bg-panel/60"}`}>
                   <div className="flex items-baseline justify-between px-1.5 pb-2 pt-1">
                     <span className={`text-[12px] font-semibold uppercase tracking-wider ${isToday ? "text-lime" : "text-muted"}`}>{WD[i]}</span>
                     <span className={`text-[20px] font-bold tabular-nums ${isToday ? "text-lime" : "text-fog"}`}>{Number(d.slice(8))}</span>
                   </div>
-                  <div className="grid gap-2">
+                  <div className="grid gap-1">
                     {list.map((w) => <BlockCard key={w.id} w={w} scores={scores.get(w.id) ?? 0} />)}
                   </div>
                   <Link href={addUrl(d)} className="mt-2 flex items-center justify-center rounded-xl border border-dashed border-line-2 py-2.5 text-[13px] font-semibold text-bleu-2 transition hover:border-bleu hover:bg-bleu/5">
