@@ -46,7 +46,7 @@ async function sessionUid(): Promise<string | null> {
 }
 
 const ATHLETE_COLS =
-  "id,email,first_name,last_name,sex,birth_year,bodyweight_kg,height_cm,box_id,role,avatar_color,created_at,last_seen_at";
+  "id,email,first_name,last_name,sex,birth_year,bodyweight_kg,height_cm,box_id,role,avatar_color,created_at,last_seen_at,tracks";
 export { ATHLETE_COLS };
 
 /** Athlète connecté (une seule lecture par requête). */

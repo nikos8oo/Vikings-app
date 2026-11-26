@@ -25,6 +25,7 @@ export type Athlete = {
   avatar_color: string | null;
   created_at: string;
   last_seen_at: string | null;
+  tracks?: string[];
 };
 
 export type Movement = {

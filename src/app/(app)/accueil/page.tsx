@@ -2,24 +2,32 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { computeLevel, getMovements, getResults, levelHistory } from "@/lib/data";
 import { db } from "@/lib/db";
-import { fmtDate, fmtMetric, todayParis } from "@/lib/format";
+import { fmtDate, fmtMetric, fmtScore, todayParis } from "@/lib/format";
+import { FORMATS } from "@/lib/prescription";
+import { monthGrid, TrainingCalendar, type DayMark } from "@/components/TrainingCalendar";
+import { TrackPicker } from "@/components/TrackPicker";
 import { DOMAINS, nextTier, tierOf } from "@/lib/scoring";
 import { requireMe } from "@/lib/session";
-import type { Workout } from "@/lib/types";
+import type { Result, Workout } from "@/lib/types";
 import { DomainRadar, LevelRing, ProgressChart } from "@/components/viz";
 import { Empty, ScoreBadge, SectionTitle, SourceTag, TierScale } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Accueil" };
 
-export default async function Accueil({ searchParams }: { searchParams: Promise<{ bienvenue?: string }> }) {
+const TRACK_ORDER = ["vikings", "affiliates", "competition", "qualif"];
+
+export default async function Accueil({ searchParams }: { searchParams: Promise<{ bienvenue?: string; d?: string }> }) {
   const me = await requireMe();
-  const { bienvenue } = await searchParams;
+  const { bienvenue, d } = await searchParams;
   const today = todayParis();
-  const [results, movements, upcoming] = await Promise.all([
+  const selected = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : today;
+  const tracks = me.tracks?.length ? me.tracks : TRACK_ORDER;
+  const { from, to } = monthGrid(selected);
+  const [results, movements, monthRes] = await Promise.all([
     getResults(me.id),
     getMovements(),
-    db().from("workouts").select("*").eq("published", true).neq("source", "benchmark").lte("workout_date", today)
-      .order("workout_date", { ascending: false }).limit(3),
+    db().from("workouts").select("*").eq("published", true).in("source", tracks).gte("workout_date", from).lte("workout_date", to)
+      .order("block", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
   ]);
   const level = await computeLevel(me, results);
   const history = await levelHistory(me, results);
@@ -29,14 +37,80 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
   const tested = new Set(level.tests.map((t) => t.id));
   const toTest = movements.filter((m) => m.anchors_m && Number(m.weight_in_level) >= 1 && !tested.has(m.id)).slice(0, 6);
   const recent = results.filter((r) => r.movement_id).slice(0, 5);
-  const workouts = (upcoming.data ?? []) as Workout[];
-  const doneW = new Set(results.map((r) => r.workout_id).filter(Boolean));
+  const monthW = (monthRes.data ?? []) as Workout[];
+  const myW = new Map<string, Result>();
+  for (const r of results) if (r.workout_id && !myW.has(r.workout_id)) myW.set(r.workout_id, r);
+  const marks: Record<string, DayMark> = {};
+  for (const w of monthW) {
+    const mk = (marks[w.workout_date] ??= { count: 0, done: 0 });
+    mk.count++;
+    if (myW.has(w.id)) mk.done++;
+  }
+  const dayW = monthW.filter((w) => w.workout_date === selected);
+  const byTrack = TRACK_ORDER.filter((t) => tracks.includes(t)).map((t) => ({ t, list: dayW.filter((w) => w.source === t) })).filter((g) => g.list.length);
 
   return (
     <div className="grid gap-6">
       <div className="rise">
-        <p className="kicker">{bienvenue ? "Bienvenue dans le clan" : "Salut"}</p>
-        <h1 className="display mt-1 text-4xl text-fog">{me.first_name}</h1>
+        <p className="kicker">{bienvenue ? "Bienvenue dans le clan" : `Salut ${me.first_name}, allons-y`}</p>
+        <h1 className="display mt-1 text-4xl capitalize text-fog">{fmtDate(selected, { weekday: "long", day: "numeric", month: "long" })}</h1>
+      </div>
+
+      {/* Calendrier + séances du jour */}
+      <div className="grid gap-5 md:grid-cols-[340px_minmax(0,1fr)] md:items-start">
+        <div className="rise rise-1 grid gap-3 md:sticky md:top-6">
+          <TrainingCalendar selected={selected} today={today} marks={marks} />
+          <details className="card px-4 py-3">
+            <summary className="cursor-pointer text-[13px] font-semibold text-muted">Mes programmes · {tracks.length}</summary>
+            <div className="mt-3"><TrackPicker tracks={tracks} /></div>
+          </details>
+        </div>
+
+        <div className="rise rise-2 grid content-start gap-5">
+          {byTrack.length ? byTrack.map(({ t, list }) => (
+            <section key={t}>
+              <div className="mb-2 flex items-center gap-2 px-1">
+                <SourceTag source={t} />
+                <span className="text-[12px] text-dim">{list.length} séance{list.length > 1 ? "s" : ""}</span>
+              </div>
+              <div className="grid gap-3">
+                {list.map((w) => {
+                  const r = myW.get(w.id);
+                  return (
+                    <article key={w.id} className="card overflow-hidden">
+                      <div className="border-b border-line bg-white/[0.02] px-4 py-2.5">
+                        <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-fog">
+                          {w.block ? <span className="text-lime">{w.block}. </span> : null}{w.title}
+                          {w.format && <span className="font-semibold text-muted"> · {FORMATS[w.format].label}</span>}
+                        </p>
+                      </div>
+                      <Link href={`/prog/${w.id}`} className="block px-4 py-4">
+                        <p className="whitespace-pre-line text-[15px] leading-relaxed text-fog">{w.description}</p>
+                        {w.coach_notes && <p className="mt-3 line-clamp-2 text-[13px] text-muted">{w.coach_notes}</p>}
+                      </Link>
+                      <div className="px-4 pb-4">
+                        {r ? (
+                          <Link href={`/prog/${w.id}`} className="flex items-center justify-between rounded-xl bg-lime/10 px-4 py-3">
+                            <span className="text-[13px] font-semibold text-lime">✓ Loggué</span>
+                            <span className="font-bold tabular-nums text-lime">{w.score_type === "none" ? "Fait" : fmtScore(Number(r.value), w.score_type, { rpr: w.reps_per_round, capped: r.capped })}</span>
+                          </Link>
+                        ) : (
+                          <Link href={`/prog/${w.id}`} className="btn w-full bg-fog py-3 text-ink hover:bg-white">＋ Logger</Link>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          )) : (
+            <div className="card px-5 py-10 text-center">
+              <p className="text-[15px] font-semibold text-fog">{selected === today ? "Pas de séance aujourd'hui" : "Pas de séance ce jour-là"}</p>
+              <p className="mt-1 text-[13px] text-muted">Sur tes programmes suivis. Choisis un autre jour ou ajoute un programme.</p>
+              <Link href="/prog" className="mt-4 inline-block text-[13px] font-semibold text-bleu-2">Voir toute la prog</Link>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Niveau */}
@@ -129,26 +203,6 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
             refLines={[{ y: 60, label: "Inter" }, { y: 75, label: "RX" }, { y: 90, label: "Élite" }]} />
         </section>
       )}
-
-      {/* Prog */}
-      <section className="rise">
-        <SectionTitle action={{ href: "/prog", label: "Toute la prog" }}>Dernières séances</SectionTitle>
-        {workouts.length ? (
-          <div className="grid gap-3 md:grid-cols-3">
-            {workouts.map((w) => (
-              <Link key={w.id} href={`/prog/${w.id}`} className="card block p-4 transition hover:border-line-2">
-                <div className="flex items-center justify-between">
-                  <SourceTag source={w.source} />
-                  <span className="text-xs text-dim">{fmtDate(w.workout_date, { weekday: "short", day: "numeric", month: "short" })}</span>
-                </div>
-                <p className="display mt-3 text-xl text-fog">{w.title}</p>
-                <p className="mt-1 line-clamp-2 whitespace-pre-line text-xs text-muted">{w.description}</p>
-                <p className={`mt-3 text-xs font-semibold ${doneW.has(w.id) ? "text-lime" : "text-bleu-2"}`}>{doneW.has(w.id) ? "✓ Score entré" : "Entrer mon score →"}</p>
-              </Link>
-            ))}
-          </div>
-        ) : <Empty>La prog Vikings arrive bientôt ici.</Empty>}
-      </section>
 
       <div className="grid gap-6 md:grid-cols-2">
         <section className="rise">

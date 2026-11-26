@@ -28,3 +28,13 @@ export async function updateProfile(_: ProfileState, f: FormData): Promise<Profi
   revalidatePath("/", "layout");
   return { ok: "Profil mis à jour." };
 }
+
+const TRACKS = ["vikings", "affiliates", "competition", "qualif"];
+
+/** Programmes suivis (affichés sur le calendrier de l'accueil). */
+export async function updateTracks(tracks: string[]) {
+  const me = await requireMe();
+  const clean = [...new Set(tracks.filter((t) => TRACKS.includes(t)))];
+  await db().from("athletes").update({ tracks: clean.length ? clean : TRACKS }).eq("id", me.id);
+  revalidatePath("/", "layout");
+}
