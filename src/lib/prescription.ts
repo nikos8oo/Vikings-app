@@ -13,8 +13,15 @@ export type SetRx = { reps: number; pct?: number | null; kg_m?: number | null; k
 
 export type Item = {
   mv: string;                 // id du mouvement
-  qty?: number | null;        // quantité par round (reps, cal, m, s)
-  qty_f?: number | null;      // quantité femmes si différente (ex. 15/12 cal)
+  reps?: number | null;       // répétitions par round
+  cal?: number | null;        // calories (hommes)
+  cal_f?: number | null;      // calories femmes si différent (15/12 cal)
+  dist_m?: number | null;     // distance en mètres (hommes)
+  dist_f?: number | null;     // distance femmes si différente
+  time_s?: number | null;     // durée (gainage, hold, effort chronométré)
+  /** @deprecated ancien format (quantité + unité), lu pour compatibilité */
+  qty?: number | null;
+  qty_f?: number | null;
   unit?: Unit;
   kg_m?: number | null;       // charge prescrite hommes
   kg_f?: number | null;       // charge prescrite femmes
@@ -52,15 +59,34 @@ export const UNIT_LABEL: Record<Unit, string> = { reps: "reps", cal: "cal", m: "
 
 const n = (v: unknown) => (v == null || v === "" || Number.isNaN(Number(v)) ? null : Number(v));
 const fmtNum = (v: number) => (Number.isInteger(v) ? String(v) : String(Math.round(v * 10) / 10).replace(".", ","));
-const fmtDur = (s: number) => (s % 60 === 0 ? `${s / 60} min` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
+const fmtDur = (s: number) => (s < 60 ? `${s} s` : s % 60 === 0 ? `${s / 60} min` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
+
+export type Amounts = { reps: number; cal: number; m: number; s: number };
+
+/** Quantités d'un mouvement par round pour un athlète (lit aussi l'ancien format qty/unit). */
+export function amounts(it: Item, sex: Sex): Amounts {
+  const a: Amounts = { reps: n(it.reps) ?? 0, cal: n(sex === "F" ? it.cal_f ?? it.cal : it.cal) ?? 0, m: n(sex === "F" ? it.dist_f ?? it.dist_m : it.dist_m) ?? 0, s: n(it.time_s) ?? 0 };
+  if (!a.reps && !a.cal && !a.m && !a.s && it.qty != null) {
+    const q = n(sex === "F" && it.qty_f != null ? it.qty_f : it.qty) ?? 0;
+    a[(it.unit ?? "reps") as keyof Amounts] = q;
+  }
+  return a;
+}
+
+/** Unité « principale » d'un mouvement : celle qui compte comme reps dans un AMRAP / time cap. */
+export function primaryUnit(it: Item, sex: Sex = "M"): Unit | null {
+  const a = amounts(it, sex);
+  return a.reps ? "reps" : a.cal ? "cal" : a.m ? "m" : a.s ? "s" : null;
+}
+
+export function qtyFor(it: Item, sex: Sex): number | null {
+  const u = primaryUnit(it, sex);
+  return u ? amounts(it, sex)[u === "reps" ? "reps" : u] : null;
+}
 
 /** Reps par round (pour convertir rounds + reps en total sur un AMRAP). */
 export function repsPerRound(rx: Rx, sex: Sex = "M"): number {
   return rx.items.reduce((s, it) => s + (qtyFor(it, sex) ?? 0), 0);
-}
-
-export function qtyFor(it: Item, sex: Sex): number | null {
-  return n(sex === "F" && it.qty_f != null ? it.qty_f : it.qty);
 }
 
 /** Charge d'un item ou d'une série pour un athlète (kg prescrit, ou % × son max). */
@@ -94,14 +120,16 @@ export function setsText(sets: SetRx[]): string {
 }
 
 export function itemText(it: Item, name: string, opts: { scheme?: boolean } = {}): string {
-  const unit = it.unit ?? "reps";
-  const q = n(it.qty), qf = n(it.qty_f);
-  let qty = "";
-  if (!opts.scheme && q != null) {
-    const v = qf != null && qf !== q ? `${fmtNum(q)}/${fmtNum(qf)}` : fmtNum(q);
-    qty = unit === "reps" ? `${v} ` : unit === "s" ? `${fmtDur(q)} ` : `${v} ${UNIT_LABEL[unit]} `;
+  const M = amounts(it, "M"), F = amounts(it, "F");
+  const hf = (m: number, f: number) => (f && f !== m ? `${fmtNum(m)}/${fmtNum(f)}` : fmtNum(m));
+  const pre: string[] = [];
+  if (!opts.scheme) {
+    if (M.reps) pre.push(fmtNum(M.reps));
+    if (M.cal) pre.push(`${hf(M.cal, F.cal)} cal`);
+    if (M.m) pre.push(`${hf(M.m, F.m)} m`);
+    if (M.s) pre.push(fmtDur(M.s));
   }
-  let s = `${qty}${name}`.trim();
+  let s = `${pre.join(" · ")} ${name}`.trim();
   const l = loadText(it);
   if (l) s += l.startsWith("@") ? ` ${l}` : `, ${l}`;
   if (n(it.height_cm) != null) s += `, ${fmtNum(n(it.height_cm)!)} cm`;
@@ -123,7 +151,7 @@ export function describe(rx: Rx, nameOf: (id: string) => string): string {
       for (const it of items) L.push(`${nameOf(it.mv)} : ${setsText(it.sets ?? [])}${it.note ? ` — ${it.note}` : ""}`);
       break;
     case "death_by":
-      if (items[0]) L.push(`Death by ${nameOf(items[0].mv)}`, `Minute 1 : ${fmtNum(n(items[0].qty) ?? 1)} rep, puis +${fmtNum(n(items[0].qty) ?? 1)} chaque minute jusqu'à l'échec.`);
+      if (items[0]) { const st = qtyFor(items[0], "M") ?? 1; L.push(`Death by ${nameOf(items[0].mv)}`, `Minute 1 : ${fmtNum(st)} rep, puis +${fmtNum(st)} chaque minute jusqu'à l'échec.`); }
       if (items[0] && loadText(items[0])) L.push(loadText(items[0]));
       break;
     case "emom":
@@ -138,7 +166,7 @@ export function describe(rx: Rx, nameOf: (id: string) => string): string {
     case "for_time": {
       const scheme = rx.rep_scheme?.length ? rx.rep_scheme : null;
       L.push(scheme ? `For time : ${scheme.join("-")}` : "For time");
-      items.forEach((it) => L.push(itemText(it, nameOf(it.mv), { scheme: !!scheme && it.qty == null })));
+      items.forEach((it) => L.push(itemText(it, nameOf(it.mv), { scheme: !!scheme && primaryUnit(it) == null })));
       break;
     }
     case "rft":
@@ -182,19 +210,18 @@ export type Performance = {
 };
 
 type Acc = Map<string, VolumeRow>;
-function add(acc: Acc, mv: string, unit: Unit, qty: number, kg: number | null) {
-  if (!mv || !qty) return;
+function add(acc: Acc, mv: string, a: Amounts, kg: number | null) {
+  if (!mv || !(a.reps || a.cal || a.m || a.s)) return;
   const r = acc.get(mv) ?? { mv, reps: 0, cal: 0, m: 0, s: 0, kg: null, tonnage: 0 };
-  if (unit === "reps") r.reps += qty;
-  else if (unit === "cal") r.cal += qty;
-  else if (unit === "m") r.m += qty;
-  else r.s += qty;
+  r.reps += a.reps; r.cal += a.cal; r.m += a.m; r.s += a.s;
   if (kg != null) {
     r.kg = Math.max(r.kg ?? 0, kg);
-    if (unit === "reps") r.tonnage += qty * kg;
+    r.tonnage += a.reps * kg;
   }
   acc.set(mv, r);
 }
+const scale = (a: Amounts, f: number): Amounts => ({ reps: Math.round(a.reps * f), cal: Math.round(a.cal * f), m: Math.round(a.m * f), s: Math.round(a.s * f) });
+const repsOnly = (reps: number): Amounts => ({ reps, cal: 0, m: 0, s: 0 });
 
 export function computeVolume(rx: Rx, p: Performance): VolumeRow[] {
   const acc: Acc = new Map();
@@ -207,38 +234,42 @@ export function computeVolume(rx: Rx, p: Performance): VolumeRow[] {
     if (m?.kg != null) return Number(m.kg);
     return p.division === "rx" ? loadFor(it, p.sex, maxOf(it)) : null;
   };
-  const qtyOf = (it: Item) => {
+  // quantités d'un round ; une modification de l'athlète remplace la quantité principale
+  const amountsOf = (it: Item, roundIdx = 0): Amounts => {
+    const scheme = rx.rep_scheme?.length ? rx.rep_scheme : null;
+    const base = amounts(it, p.sex);
+    const u = primaryUnit(it, p.sex);
     const m = mod(it);
-    return m?.qty != null ? Number(m.qty) : qtyFor(it, p.sex) ?? 0;
+    if (!u) return scheme ? repsOnly(m?.qty != null ? Number(m.qty) : scheme[roundIdx] ?? 0) : base;
+    if (m?.qty != null) return { ...base, [u === "reps" ? "reps" : u]: Number(m.qty) } as Amounts;
+    return base;
   };
-  const unitOf = (it: Item) => it.unit ?? "reps";
+  const primaryOf = (a: Amounts) => a.reps || a.cal || a.m || a.s;
+  const qtyOf = (it: Item) => primaryOf(amountsOf(it));
 
   // Formats séries : on compte chaque série (réelle si détaillée, sinon prescrite)
   if (rx.format === "sets" || rx.format === "max") {
     if (p.detail?.sets?.length) {
-      for (const s of p.detail.sets) add(acc, s.mv, "reps", Number(s.reps) || 0, s.kg != null ? Number(s.kg) : null);
+      for (const s of p.detail.sets) add(acc, s.mv, repsOnly(Number(s.reps) || 0), s.kg != null ? Number(s.kg) : null);
     } else {
-      for (const it of items) for (const s of it.sets ?? []) add(acc, it.mv, "reps", s.reps, loadFor(s, p.sex, maxOf(it)));
+      for (const it of items) for (const s of it.sets ?? []) add(acc, it.mv, repsOnly(s.reps), loadFor(s, p.sex, maxOf(it)));
     }
     return [...acc.values()];
   }
 
-  // Un round complet : liste ordonnée (mouvement, unité, quantité)
-  const roundSeq = (roundIdx: number) =>
-    items.map((it) => {
-      const scheme = rx.rep_scheme?.length ? rx.rep_scheme : null;
-      const q = scheme && it.qty == null && mod(it)?.qty == null ? scheme[roundIdx] ?? 0 : qtyOf(it);
-      return { it, q };
-    });
+  // Un round complet : liste ordonnée (mouvement, quantités, quantité principale)
+  const roundSeq = (roundIdx: number) => items.map((it) => { const a = amountsOf(it, roundIdx); return { it, a, q: primaryOf(a) }; });
+  // Ajoute une partie d'un mouvement (au prorata de la quantité principale)
+  const part = (it: Item, a: Amounts, q: number, done: number) => add(acc, it.mv, done >= q ? a : scale(a, q ? done / q : 0), kgOf(it));
 
   // Répartit un total de « reps » dans l'ordre de la séance (AMRAP, time cap)
   const walk = (totalRounds: number, extra: number) => {
-    for (let r = 0; r < totalRounds; r++) for (const { it, q } of roundSeq(r)) add(acc, it.mv, unitOf(it), q, kgOf(it));
+    for (let r = 0; r < totalRounds; r++) for (const { it, a } of roundSeq(r)) add(acc, it.mv, a, kgOf(it));
     let left = extra;
-    for (const { it, q } of roundSeq(totalRounds)) {
+    for (const { it, a, q } of roundSeq(totalRounds)) {
       if (left <= 0) break;
       const done = Math.min(q, left);
-      add(acc, it.mv, unitOf(it), done, kgOf(it));
+      part(it, a, q, done);
       left -= done;
     }
   };
@@ -260,10 +291,10 @@ export function computeVolume(rx: Rx, p: Performance): VolumeRow[] {
         // time cap : value = reps réalisées, on parcourt round par round
         let left = p.value;
         for (let r = 0; r < totalRounds && left > 0; r++) {
-          for (const { it, q } of roundSeq(r)) {
+          for (const { it, a, q } of roundSeq(r)) {
             if (left <= 0) break;
             const done = Math.min(q, left);
-            add(acc, it.mv, unitOf(it), done, kgOf(it));
+            part(it, a, q, done);
             left -= done;
           }
         }
@@ -273,7 +304,7 @@ export function computeVolume(rx: Rx, p: Performance): VolumeRow[] {
     case "emom": {
       const total = n(rx.rounds) ?? 0;
       if (rx.emom_mode === "alternate" && items.length > 1) {
-        for (let k = 0; k < total; k++) { const it = items[k % items.length]; add(acc, it.mv, unitOf(it), qtyOf(it), kgOf(it)); }
+        for (let k = 0; k < total; k++) { const it = items[k % items.length]; add(acc, it.mv, amountsOf(it), kgOf(it)); }
       } else walk(total, 0);
       break;
     }
@@ -285,7 +316,7 @@ export function computeVolume(rx: Rx, p: Performance): VolumeRow[] {
     case "death_by": {
       // score = reps totales ; réparties à parts égales entre les mouvements
       const share = items.length ? p.value / items.length : 0;
-      for (const it of items) add(acc, it.mv, "reps", Math.round(share), kgOf(it));
+      for (const it of items) add(acc, it.mv, repsOnly(Math.round(share)), kgOf(it));
       break;
     }
   }
@@ -310,8 +341,17 @@ export function sanitizeRx(raw: unknown): Rx | string {
   const pos = (v: unknown, max = 100000) => { const x = n(v); return x != null && x > 0 && x <= max ? x : null; };
   const items: Item[] = (Array.isArray(r.items) ? r.items : []).filter((i) => i && typeof i.mv === "string" && i.mv).slice(0, 30).map((i) => ({
     mv: String(i.mv),
-    qty: pos(i.qty), qty_f: pos(i.qty_f),
-    unit: (["reps", "cal", "m", "s"] as const).includes(i.unit as Unit) ? (i.unit as Unit) : "reps",
+    ...(() => {
+      // ancien format qty/unit converti en champs séparés
+      const legacy = i.qty != null && i.reps == null && i.cal == null && i.dist_m == null && i.time_s == null;
+      const u = (["reps", "cal", "m", "s"] as const).includes(i.unit as Unit) ? (i.unit as Unit) : "reps";
+      return {
+        reps: legacy && u === "reps" ? pos(i.qty) : pos(i.reps, 10000),
+        cal: legacy && u === "cal" ? pos(i.qty) : pos(i.cal, 10000), cal_f: legacy && u === "cal" ? pos(i.qty_f) : pos(i.cal_f, 10000),
+        dist_m: legacy && u === "m" ? pos(i.qty) : pos(i.dist_m), dist_f: legacy && u === "m" ? pos(i.qty_f) : pos(i.dist_f),
+        time_s: legacy && u === "s" ? pos(i.qty) : pos(i.time_s, 36000),
+      };
+    })(),
     kg_m: pos(i.kg_m, 500), kg_f: pos(i.kg_f, 500), pct: pos(i.pct, 150), height_cm: pos(i.height_cm, 300),
     sets: Array.isArray(i.sets) ? i.sets.slice(0, 30).map((s) => ({ reps: pos(s.reps, 500) ?? 1, pct: pos(s.pct, 150), kg_m: pos(s.kg_m, 500), kg_f: pos(s.kg_f, 500) })) : undefined,
     note: typeof i.note === "string" && i.note.trim() ? i.note.trim().slice(0, 140) : null,
@@ -329,7 +369,8 @@ export function sanitizeRx(raw: unknown): Rx | string {
   };
   if (f === "amrap" && !out.duration_s) return "Indique la durée de l'AMRAP.";
   if ((f === "rft" || f === "intervals" || f === "emom") && !out.rounds) return f === "emom" ? "Indique le nombre de minutes (ou d'intervalles)." : "Indique le nombre de tours.";
-  if (f === "for_time" && !out.rep_scheme?.length && items.some((i) => i.qty == null)) return "Indique les reps de chaque mouvement, ou un schéma (ex. 21-15-9).";
-  if (["amrap", "rft", "emom", "intervals"].includes(f) && items.some((i) => i.qty == null)) return "Indique la quantité de chaque mouvement.";
+  const empty = (i: Item) => primaryUnit(i) == null;
+  if (f === "for_time" && !out.rep_scheme?.length && items.some(empty)) return "Indique les reps (ou cal, distance, temps) de chaque mouvement, ou un schéma (ex. 21-15-9).";
+  if (["amrap", "rft", "emom", "intervals"].includes(f) && items.some(empty)) return "Indique les reps, calories, distance ou temps de chaque mouvement.";
   return out;
 }

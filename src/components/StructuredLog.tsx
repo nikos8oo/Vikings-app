@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { addStructuredResult, type ResultState } from "@/app/actions/results";
-import { FORMATS, loadFor, qtyFor, UNIT_LABEL, type Detail, type Rx } from "@/lib/prescription";
+import { FORMATS, loadFor, primaryUnit, qtyFor, UNIT_LABEL, type Detail, type Rx } from "@/lib/prescription";
 import type { Sex } from "@/lib/types";
 import { FormMessage, Submit } from "./forms";
 
@@ -120,10 +120,10 @@ export function StructuredLog({ workoutId, rx, sex, maxes, names, rpr, today }: 
           {rx.items.map((it) => (
             <div key={it.mv} className="ios-row">
               <span className="min-w-0 flex-1 truncate text-[15px]">{names[it.mv] ?? it.mv}</span>
-              {rx.format !== "tabata" && rx.format !== "death_by" && (
+              {rx.format !== "tabata" && rx.format !== "death_by" && primaryUnit(it, sex) && (
                 <span className="flex items-center gap-1">
                   <input value={mods[it.mv]?.qty ?? ""} inputMode="decimal" onChange={(e) => setMods({ ...mods, [it.mv]: { ...mods[it.mv], qty: e.target.value } })} className="ios-cell w-16" />
-                  <span className="w-8 text-[12px] text-dim">{UNIT_LABEL[it.unit ?? "reps"]}</span>
+                  <span className="w-8 text-[12px] text-dim">{UNIT_LABEL[primaryUnit(it, sex) ?? "reps"]}</span>
                 </span>
               )}
               <span className="flex items-center gap-1">

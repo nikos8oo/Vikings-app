@@ -4,7 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { saveWorkout } from "@/app/actions/admin";
 import { FormMessage, Submit } from "@/components/forms";
 import { CATEGORY_LABEL, fmtTime, parseTime } from "@/lib/format";
-import { computeVolume, describe, FORMATS, repsPerRound, type Format, type Item, type Rx, type SetRx, type Unit } from "@/lib/prescription";
+import { computeVolume, describe, FORMATS, repsPerRound, type Format, type Item, type Rx, type SetRx } from "@/lib/prescription";
 import type { Workout } from "@/lib/types";
 
 export type Mv = { id: string; name: string; category: string; metric: string };
@@ -14,9 +14,16 @@ const BLOCKS = ["", "A", "B", "C", "D"];
 const LV = [["100", "Games"], ["90", "Élite"], ["75", "RX"], ["60", "Inter"], ["40", "Fitness"]] as const;
 const POPULAR = ["back-squat", "deadlift", "clean", "snatch", "thruster", "kipping-pull-up", "double-under", "wall-ball", "row", "run", "burpee", "toes-to-bar"];
 
+type Field = "reps" | "cal" | "dist" | "time" | "height";
+const LABEL: Record<Field, string> = { reps: "Répétitions", cal: "Calories", dist: "Distance", time: "Temps", height: "Hauteur" };
+const FIELDS: { k: Field; label: string; unit: string; m: "reps" | "cal" | "dist_m" | "time_s"; f?: "cal_f" | "dist_f"; hf?: boolean }[] = [
+  { k: "reps", label: "Répétitions", unit: "reps", m: "reps" },
+  { k: "cal", label: "Calories", unit: "cal", m: "cal", f: "cal_f", hf: true },
+  { k: "dist", label: "Distance", unit: "m", m: "dist_m", f: "dist_f", hf: true },
+  { k: "time", label: "Temps", unit: "", m: "time_s" },
+];
 const num = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")));
 const show = (v: number | null | undefined) => (v == null ? "" : String(v).replace(".", ","));
-const defaultUnit = (m?: Mv): Unit => (m?.category === "engine" ? (m.metric === "calories" ? "cal" : "m") : "reps");
 
 export function WorkoutBuilder({ w, movements, today }: { w?: Workout; movements: Mv[]; today: string }) {
   const [state, action] = useActionState(saveWorkout, null);
@@ -52,10 +59,9 @@ export function WorkoutBuilder({ w, movements, today }: { w?: Workout; movements
   });
 
   const addMovement = (id: string) => {
-    const m = mmap.get(id);
     setRx((r) => ({
       ...r,
-      items: [...r.items, isSets ? { mv: id, sets: r.format === "max" ? [{ reps: 1 }] : [{ reps: 5 }, { reps: 5 }, { reps: 5 }] } : { mv: id, unit: defaultUnit(m) }],
+      items: [...r.items, isSets ? { mv: id, sets: r.format === "max" ? [{ reps: 1 }] : [{ reps: 5 }, { reps: 5 }, { reps: 5 }] } : { mv: id }],
     }));
   };
 
@@ -127,7 +133,8 @@ export function WorkoutBuilder({ w, movements, today }: { w?: Workout; movements
             ))}
             {canAdd && <MovementPicker movements={movements} onPick={addMovement} />}
           </div>
-          {rx.format === "for_time" && <p className="ios-foot">Avec un schéma (ex. 21-15-9), laisse les reps vides : elles suivent le schéma.</p>}
+          {rx.format === "for_time" && <p className="ios-foot">Avec un schéma (ex. 21-15-9), laisse les répétitions vides : elles suivent le schéma.</p>}
+          {!isSets && <p className="ios-foot">Remplis ce qui s&apos;applique : répétitions, calories, distance ou temps, puis la charge. « + Calories », « + Distance »… ajoutent une ligne.</p>}
           {isSets && <p className="ios-foot">Une charge en % est convertie en kg pour chaque athlète, à partir de son meilleur score enregistré sur ce mouvement.</p>}
         </section>
 
@@ -243,12 +250,17 @@ function ItemCard({ it, index, rx, mv, setItem, onRemove, onMove }: {
 }) {
   const isSets = rx.format === "sets" || rx.format === "max";
   const [pctMode, setPctMode] = useState<boolean>(() => (isSets ? (it.sets ?? []).some((s) => s.pct != null) || !(it.sets ?? []).some((s) => s.kg_m != null) : it.pct != null));
-  const [femme, setFemme] = useState(it.qty_f != null);
+  const hasValue = (k: Field) => (k === "reps" ? it.reps != null : k === "cal" ? it.cal != null || it.cal_f != null : k === "dist" ? it.dist_m != null || it.dist_f != null : k === "time" ? it.time_s != null : it.height_cm != null);
+  const [shown, setShown] = useState<Field[]>(() => {
+    const filled = (["reps", "cal", "dist", "time", "height"] as Field[]).filter(hasValue);
+    if (filled.length) return filled;
+    if (rx.format === "death_by") return ["reps"];
+    return mv?.category === "engine" ? (mv.metric === "calories" ? ["cal"] : ["dist"]) : mv?.metric === "height" || /box|wall-ball/.test(it.mv) ? ["reps", "height"] : ["reps"];
+  });
+  const hidden = (["reps", "cal", "dist", "time", "height"] as Field[]).filter((k) => !shown.includes(k));
   const up = (p: Partial<Item>) => setItem(index, p);
   const sets = it.sets ?? [];
   const setSet = (k: number, p: Partial<SetRx>) => up({ sets: sets.map((s, j) => (j === k ? { ...s, ...p } : s)) });
-  const unit = it.unit ?? "reps";
-  const showHeight = mv?.metric === "height" || /box|wall-ball/.test(it.mv);
 
   return (
     <div className="ios-group">
@@ -305,28 +317,37 @@ function ItemCard({ it, index, rx, mv, setItem, onRemove, onMove }: {
         </div>
       ) : (
         <>
-          <div className="ios-row">
-            <span className="ios-label">{rx.format === "tabata" || rx.format === "death_by" ? (rx.format === "death_by" ? "Pas (reps/min)" : "Unité") : "Quantité"}</span>
-            {rx.format !== "tabata" && <input value={show(it.qty)} inputMode="decimal" placeholder={rx.format === "for_time" && rx.rep_scheme?.length ? "schéma" : rx.format === "death_by" ? "1" : "—"} onChange={(e) => up({ qty: num(e.target.value) })} className="ios-input" />}
-            {rx.format !== "death_by" && (
-              <div className="seg shrink-0">
-                {(["reps", "cal", "m", "s"] as Unit[]).map((u) => <button key={u} type="button" aria-pressed={unit === u} onClick={() => up({ unit: u })} className="seg-btn px-2.5">{u}</button>)}
-              </div>
-            )}
-          </div>
-          {rx.format !== "tabata" && rx.format !== "death_by" && (unit === "cal" || femme) && (
-            <label className="ios-row"><span className="ios-label">Quantité femmes</span>
-              <input value={show(it.qty_f)} inputMode="decimal" placeholder="identique" onChange={(e) => { up({ qty_f: num(e.target.value) }); setFemme(true); }} className="ios-input" /></label>
-          )}
+          {rx.format !== "tabata" && FIELDS.filter((f) => shown.includes(f.k)).map((f) => (
+            <div key={f.k} className="ios-row">
+              <span className="ios-label">{rx.format === "death_by" && f.k === "reps" ? "Reps ajoutées / min" : f.label}</span>
+              <span className="flex flex-1 items-center justify-end gap-1.5">
+                {f.k === "time" ? (
+                  <input defaultValue={it.time_s ? fmtTime(it.time_s) : ""} placeholder="mm:ss" onChange={(e) => up({ time_s: e.target.value.trim() ? parseTime(e.target.value) : null })} className="ios-cell w-24" />
+                ) : f.hf ? (
+                  <>
+                    <input value={show(it[f.m])} inputMode="decimal" placeholder="H" onChange={(e) => up({ [f.m]: num(e.target.value) })} className="ios-cell w-20" />
+                    <span className="text-dim">/</span>
+                    <input value={show(it[f.f!])} inputMode="decimal" placeholder="F" onChange={(e) => up({ [f.f!]: num(e.target.value) })} className="ios-cell w-20" />
+                  </>
+                ) : (
+                  <input value={show(it[f.m])} inputMode="numeric" placeholder={rx.format === "for_time" && rx.rep_scheme?.length ? "schéma" : "—"} onChange={(e) => up({ [f.m]: num(e.target.value) })} className="ios-cell w-24" />
+                )}
+                <span className="w-9 text-[13px] text-dim">{f.unit}</span>
+              </span>
+              {!hasValue(f.k) && shown.length > 1 && <button type="button" onClick={() => setShown(shown.filter((x) => x !== f.k))} className="text-dim" aria-label="Masquer">×</button>}
+            </div>
+          ))}
           <div className="ios-row">
             <span className="ios-label">Charge</span>
             {pctMode ? (
-              <input value={show(it.pct)} inputMode="decimal" placeholder="—" onChange={(e) => up({ pct: num(e.target.value), kg_m: null, kg_f: null })} className="ios-input" />
+              <span className="flex flex-1 items-center justify-end gap-1.5">
+                <input value={show(it.pct)} inputMode="decimal" placeholder="—" onChange={(e) => up({ pct: num(e.target.value), kg_m: null, kg_f: null })} className="ios-cell w-20" />
+              </span>
             ) : (
               <span className="flex flex-1 items-center justify-end gap-1.5">
-                <input value={show(it.kg_m)} inputMode="decimal" placeholder="H" onChange={(e) => up({ kg_m: num(e.target.value), pct: null })} className="ios-cell w-16" />
+                <input value={show(it.kg_m)} inputMode="decimal" placeholder="H" onChange={(e) => up({ kg_m: num(e.target.value), pct: null })} className="ios-cell w-20" />
                 <span className="text-dim">/</span>
-                <input value={show(it.kg_f)} inputMode="decimal" placeholder="F" onChange={(e) => up({ kg_f: num(e.target.value), pct: null })} className="ios-cell w-16" />
+                <input value={show(it.kg_f)} inputMode="decimal" placeholder="F" onChange={(e) => up({ kg_f: num(e.target.value), pct: null })} className="ios-cell w-20" />
               </span>
             )}
             <div className="seg shrink-0">
@@ -334,10 +355,17 @@ function ItemCard({ it, index, rx, mv, setItem, onRemove, onMove }: {
               <button type="button" aria-pressed={pctMode} onClick={() => setPctMode(true)} className="seg-btn px-2.5">%</button>
             </div>
           </div>
-          {showHeight && (
+          {shown.includes("height") && (
             <label className="ios-row"><span className="ios-label">Hauteur / cible</span>
               <input value={show(it.height_cm)} inputMode="numeric" placeholder="—" onChange={(e) => up({ height_cm: num(e.target.value) })} className="ios-input" />
               <span className="text-[15px] text-dim">cm</span></label>
+          )}
+          {rx.format !== "tabata" && rx.format !== "death_by" && hidden.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-4 py-2.5">
+              {hidden.map((k) => (
+                <button key={k} type="button" onClick={() => setShown([...shown, k])} className="rounded-full bg-panel-3 px-3 py-1.5 text-[13px] font-medium text-bleu-2">+ {LABEL[k]}</button>
+              ))}
+            </div>
           )}
         </>
       )}
