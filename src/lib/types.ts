@@ -76,6 +76,7 @@ export type Workout = {
   block: string | null;
   variant?: string | null;
   subtrack?: string | null;
+  color?: string | null;
 };
 
 export type Result = {

@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { parseNum, parseTime, todayParis } from "@/lib/format";
 import { requireAdmin, requireStaff } from "@/lib/session";
 import { describe, FORMATS, repsPerRound, sanitizeRx, type Rx } from "@/lib/prescription";
+import { BLOCK_COLORS } from "@/lib/colors";
 import type { Anchors } from "@/lib/types";
 
 export type AdminState = { error?: string; ok?: string } | null;
@@ -89,6 +90,7 @@ export async function saveWorkout(_: AdminState, f: FormData): Promise<AdminStat
     block: str(f, "block").slice(0, 24) || null,
     subtrack: source === "affiliates" ? (SUBS.includes(str(f, "subtrack")) ? str(f, "subtrack") : "crossfit") : null,
     variant: rx?.variant ?? null,
+    color: BLOCK_COLORS.some((c) => c.id === str(f, "color")) ? str(f, "color") : null,
     anchors_m: am,
     anchors_f: af,
     counts_in_level: counts,

@@ -9,6 +9,7 @@ import { requireMe } from "@/lib/session";
 import type { Result, Workout } from "@/lib/types";
 import { ScoreForm } from "@/components/ScoreForm";
 import { StructuredLog } from "@/components/StructuredLog";
+import { colorHex } from "@/lib/colors";
 import { formatLabel, loadFor, setsText, type Rx } from "@/lib/prescription";
 import { DeleteResult } from "@/components/DeleteButton";
 import { Empty, ScoreBadge, SectionTitle, SourceTag } from "@/components/ui";
@@ -60,7 +61,7 @@ export default async function WorkoutPage({ params }: P) {
 
       <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">
         <div className="grid content-start gap-6">
-          <section className="rise rise-1 card p-5">
+          <section className="rise rise-1 card p-5" style={colorHex(w.color) ? { boxShadow: `inset 4px 0 0 ${colorHex(w.color)}` } : undefined}>
             {rx ? (
               <div className="grid gap-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{formatLabel(rx)}{w.block ? ` · Partie ${w.block}` : ""}</p>

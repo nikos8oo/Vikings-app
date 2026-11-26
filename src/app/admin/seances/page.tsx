@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { db, must } from "@/lib/db";
 import { todayParis } from "@/lib/format";
+import { colorHex } from "@/lib/colors";
 import { parseTrack, TRACK_KEYS, trackLabel } from "@/lib/tracks";
 import { formatLabel } from "@/lib/prescription";
 import type { Workout } from "@/lib/types";
@@ -125,7 +126,8 @@ export default async function Planning({ searchParams }: { searchParams: Promise
                     </div>
                     <div className="mt-1.5 grid gap-1">
                       {list.map((w) => (
-                        <Link key={w.id} href={`/admin/seances/${w.id}`} className={`truncate rounded-md px-2 py-1 text-[12px] ${w.published ? "bg-bleu/15 text-fog" : "border border-dashed border-line-2 text-muted"} hover:bg-bleu/25`}>
+                        <Link key={w.id} href={`/admin/seances/${w.id}`} className={`truncate rounded-md px-2 py-1 text-[12px] ${w.published ? "bg-bleu/15 text-fog" : "border border-dashed border-line-2 text-muted"} hover:bg-bleu/25`}
+                          style={colorHex(w.color) ? { background: `${colorHex(w.color)}26`, boxShadow: `inset 3px 0 0 ${colorHex(w.color)}` } : undefined}>
                           {w.block ? <b className="text-lime">{w.block} </b> : null}{w.format ? formatLabel(w) : w.title}
                         </Link>
                       ))}
@@ -143,10 +145,11 @@ export default async function Planning({ searchParams }: { searchParams: Promise
 
 function BlockCard({ w, scores }: { w: Workout; scores: number }) {
   return (
-    <div className={`overflow-hidden rounded-[12px] border ${w.published ? "border-line bg-panel-2" : "border-dashed border-line-2 bg-transparent"}`}>
+    <div className={`overflow-hidden rounded-[12px] border ${w.published ? "border-line bg-panel-2" : "border-dashed border-line-2 bg-transparent"}`}
+      style={colorHex(w.color) ? { boxShadow: `inset 3px 0 0 ${colorHex(w.color)}` } : undefined}>
       <Link href={`/admin/seances/${w.id}`} className="block px-3 py-2.5 hover:bg-white/[0.03]">
         <div className="flex items-center gap-1.5">
-          {w.block && <span className="flex h-5 w-5 items-center justify-center rounded-md bg-lime text-[11px] font-bold text-ink">{w.block}</span>}
+          {w.block && <span className="flex h-5 w-5 items-center justify-center rounded-md bg-lime text-[11px] font-bold text-ink" style={colorHex(w.color) ? { background: colorHex(w.color)!, color: w.color === "lime" || w.color === "ambre" ? "#050505" : "#fff" } : undefined}>{w.block}</span>}
           <span className="truncate text-[12px] font-semibold uppercase tracking-wide text-muted">{formatLabel(w)}</span>
         </div>
         <p className="mt-1.5 line-clamp-1 text-[13px] font-semibold text-fog">{w.title}</p>

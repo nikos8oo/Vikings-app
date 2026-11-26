@@ -6,6 +6,7 @@ import { FormMessage, Submit } from "@/components/forms";
 import { CATEGORY_LABEL, fmtTime, parseTime } from "@/lib/format";
 import { computeVolume, describe, FORMATS, RESULT_BY, repsPerRound, TEMPLATES, templateOf, type ResultBy, type Template, type Format, type Item, type Rx, type SetRx } from "@/lib/prescription";
 import { SUBTRACKS } from "@/lib/tracks";
+import { BLOCK_COLORS, colorHex } from "@/lib/colors";
 import type { Workout } from "@/lib/types";
 
 export type Mv = { id: string; name: string; category: string; metric: string };
@@ -35,6 +36,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
 
   const [source, setSource] = useState<string>(w?.source === "vikings" ? "competition" : w?.source ?? defaults?.source ?? "competition");
   const [subtrack, setSubtrack] = useState<string>(w?.subtrack ?? defaults?.subtrack ?? "crossfit");
+  const [color, setColor] = useState<string>(w?.color ?? "");
   const [block, setBlock] = useState<string>(w?.block ?? defaults?.block ?? "");
   const initTpl = w?.format ? templateOf({ format: w.format, variant: w.variant ?? null }) : null;
   const [group, setGroup] = useState<"single" | "multi">(initTpl?.group ?? "single");
@@ -116,6 +118,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
       <input type="hidden" name="rx_weeks" value={JSON.stringify(weeks.slice(1))} />
       <input type="hidden" name="source" value={source} />
       <input type="hidden" name="subtrack" value={source === "affiliates" ? subtrack : ""} />
+      <input type="hidden" name="color" value={color} />
       <input type="hidden" name="block" value={block} />
       {returnTo && <input type="hidden" name="return" value={returnTo} />}
 
@@ -130,6 +133,16 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
               <input name="workout_date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="ios-input [color-scheme:dark]" /></label>
             <div className="ios-row justify-between"><span className="ios-label">Partie</span>
               <div className="seg">{BLOCKS.map((b) => <button key={b || "-"} type="button" aria-pressed={block === b} onClick={() => setBlock(b)} className="seg-btn min-w-9">{b || "—"}</button>)}</div>
+            </div>
+            <div className="ios-row flex-wrap justify-between gap-y-2"><span className="ios-label">Couleur</span>
+              <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Couleur du bloc">
+                <button type="button" role="radio" aria-checked={!color} onClick={() => setColor("")} title="Aucune"
+                  className={`grid h-7 w-7 place-items-center rounded-full border border-line-2 text-[13px] text-dim transition ${!color ? "ring-2 ring-fog ring-offset-2 ring-offset-panel-2" : ""}`}>∅</button>
+                {BLOCK_COLORS.map((c) => (
+                  <button key={c.id} type="button" role="radio" aria-checked={color === c.id} onClick={() => setColor(c.id)} title={c.label} aria-label={c.label}
+                    className={`h-7 w-7 rounded-full transition hover:scale-110 ${color === c.id ? "ring-2 ring-fog ring-offset-2 ring-offset-panel-2" : ""}`} style={{ background: c.hex }} />
+                ))}
+              </div>
             </div>
             <div className="ios-row flex-wrap justify-between gap-y-2"><span className="ios-label">Programme</span>
               <div className="seg w-full sm:w-auto">{SOURCES.map(([v, l]) => <button key={v} type="button" aria-pressed={source === v} onClick={() => setSource(v)} className="seg-btn px-1.5 text-[12px] sm:px-3 sm:text-[13px]">{l}</button>)}</div>
@@ -276,7 +289,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
       {/* Aperçu */}
       <aside className="grid gap-3 lg:sticky lg:top-[104px] lg:max-h-[calc(100dvh-120px)] lg:overflow-y-auto no-scrollbar">
         <h2 className="ios-head">Aperçu athlète</h2>
-        <div className="ios-group p-5">
+        <div className="ios-group relative p-5" style={colorHex(color) ? { boxShadow: `inset 4px 0 0 ${colorHex(color)}` } : undefined}>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{FORMATS[rx.format].label}{block ? ` · Partie ${block}` : ""}{weeks.length > 1 ? ` · S${wk + 1} (${short(addDays(date, 7 * wk))})` : ""}</p>
           {preview ? <p className="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-fog">{preview}</p>
             : <p className="mt-3 text-[14px] text-dim">Ajoute un mouvement pour voir la séance.</p>}
