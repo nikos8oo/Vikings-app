@@ -7,10 +7,12 @@ import { TIERS, tierOf } from "@/lib/scoring";
 import { ATHLETE_COLS } from "@/lib/session";
 import type { Athlete } from "@/lib/types";
 import { SectionTitle } from "@/components/ui";
+import { WeekBoard } from "./WeekBoard";
 
 export const metadata: Metadata = { title: "Admin" };
 
-export default async function AdminHome() {
+export default async function AdminHome({ searchParams }: { searchParams: Promise<{ wp?: string; wd?: string }> }) {
+  const { wp, wd } = await searchParams;
   const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
   const [athletes, boxes, recentRes, weekCount, wCount, mmap] = await Promise.all([
     fetchAll<Athlete>("athletes", ATHLETE_COLS),
@@ -45,9 +47,11 @@ export default async function AdminHome() {
         </div>
         <div className="flex gap-2">
           <a href="/admin/export" className="btn-ghost">Export CSV</a>
-          <Link href="/admin/seances/nouvelle" className="btn-lime">+ Nouvelle séance</Link>
+          <Link href="/admin/seances" className="btn-lime">Planning</Link>
         </div>
       </div>
+
+      <WeekBoard program={wp === "affiliates" ? "affiliates" : "competition"} anchor={wd} />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {stats.map(([l, v]) => (

@@ -8,7 +8,8 @@ import { parseTrack, TRACK_KEYS, trackLabel } from "@/lib/tracks";
 import { formatLabel } from "@/lib/prescription";
 import type { Workout } from "@/lib/types";
 import { monthGrid } from "@/components/TrainingCalendar";
-import { DuplicateNextDay, TrackSwitch } from "./PlannerControls";
+import { TrackSwitch } from "./PlannerControls";
+import { BlockCard } from "./BlockCard";
 
 export const metadata: Metadata = { title: "Planning" };
 
@@ -139,26 +140,6 @@ export default async function Planning({ searchParams }: { searchParams: Promise
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function BlockCard({ w, scores }: { w: Workout; scores: number }) {
-  return (
-    <div className={`overflow-hidden rounded-[12px] border ${w.published ? "border-line bg-panel-2" : "border-dashed border-line-2 bg-transparent"}`}
-      style={blockStyle(w.color)}>
-      <Link href={`/admin/seances/${w.id}`} className="block px-3 py-2.5 hover:bg-white/[0.03]">
-        <div className="flex items-center gap-1.5">
-          {w.block && <span className="flex h-5 w-5 items-center justify-center rounded-md bg-lime text-[11px] font-bold text-ink" style={colorHex(w.color) ? { background: colorHex(w.color)!, color: w.color === "lime" || w.color === "ambre" ? "#050505" : "#fff" } : undefined}>{w.block}</span>}
-          <span className="truncate text-[12px] font-semibold uppercase tracking-wide text-muted">{formatLabel(w)}</span>
-        </div>
-        <p className="mt-1.5 line-clamp-1 text-[13px] font-semibold text-fog">{w.title}</p>
-        <p className="mt-1 line-clamp-4 whitespace-pre-line text-[12px] leading-snug text-muted">{w.description}</p>
-      </Link>
-      <div className="flex items-center justify-between border-t border-line px-3 py-1.5">
-        <span className="text-[11px] text-dim">{!w.published ? "Brouillon" : scores ? `${scores} score${scores > 1 ? "s" : ""}` : "Publié"}</span>
-        <DuplicateNextDay id={w.id} date={w.workout_date} />
-      </div>
     </div>
   );
 }
