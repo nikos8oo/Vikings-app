@@ -129,30 +129,8 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
           </div>
         </section>
 
-        {/* Répétition sur les semaines suivantes */}
-        <section>
-          <h2 className="ios-head">Répéter ce bloc</h2>
-          <div className="ios-group">
-            <div className="ios-row flex-wrap justify-between gap-y-2">
-              <span className="ios-label">Semaines suivantes</span>
-              <div className="seg">{[0, 1, 2, 3, 4].map((nb) => <button key={nb} type="button" aria-pressed={weeks.length - 1 === nb} onClick={() => setRepeat(nb)} className="seg-btn min-w-10">{nb ? `+${nb}` : "Non"}</button>)}</div>
-            </div>
-            {weeks.length > 1 && (
-              <>
-                <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-                  <span className="mr-1 text-[13px] text-muted">Progression depuis S1</span>
-                  {([["pct", 2.5, "+2,5 %"], ["pct", 5, "+5 %"], ["reps", 1, "+1 rep"], ["kg", 2.5, "+2,5 kg"]] as const).map(([k, st, l]) => (
-                    <button key={l} type="button" onClick={() => progress(k, st)} className="rounded-full bg-panel-3 px-3 py-1.5 text-[13px] font-medium text-bleu-2 hover:bg-[#2a2a34]">{l}</button>
-                  ))}
-                </div>
-                <p className="px-4 pb-3 text-[12px] text-dim">Chaque semaine est un bloc à part entière : choisis un onglet ci-dessous pour modifier ses reps, ses % ou ajouter un mouvement.</p>
-              </>
-            )}
-          </div>
-        </section>
-
         {weeks.length > 1 && (
-          <div className="sticky top-[118px] z-20 -mx-1 rounded-[14px] bg-ink/85 px-1 py-2 backdrop-blur-xl">
+          <div id="semaines" className="scroll-mt-32 sticky top-[118px] z-20 -mx-1 rounded-[14px] bg-ink/85 px-1 py-2 backdrop-blur-xl">
             <div className="seg w-full">
               {weeks.map((_, k) => (
                 <button key={k} type="button" aria-pressed={wk === k} onClick={() => setWk(k)} className="seg-btn py-2">
@@ -202,6 +180,38 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
           {rx.format === "for_time" && <p className="ios-foot">Avec un schéma (ex. 21-15-9), laisse les répétitions vides : elles suivent le schéma.</p>}
           {!isSets && <p className="ios-foot">Remplis ce qui s&apos;applique : répétitions, calories, distance ou temps, puis la charge. « + Calories », « + Distance »… ajoutent une ligne.</p>}
           {isSets && <p className="ios-foot">Une charge en % est convertie en kg pour chaque athlète, à partir de son meilleur score enregistré sur ce mouvement.</p>}
+        </section>
+
+        {/* Répétition sur les semaines suivantes */}
+        <section>
+          <h2 className="ios-head">Répéter ce bloc sur les semaines suivantes</h2>
+          <div className="ios-group">
+            <div className="ios-row flex-wrap justify-between gap-y-2">
+              <span className="ios-label">Semaines suivantes</span>
+              <div className="seg">{[0, 1, 2, 3, 4].map((nb) => <button key={nb} type="button" aria-pressed={weeks.length - 1 === nb} onClick={() => setRepeat(nb)} className="seg-btn min-w-10">{nb ? `+${nb}` : "Non"}</button>)}</div>
+            </div>
+            {weeks.length > 1 && (
+              <>
+                <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+                  <span className="mr-1 text-[13px] text-muted">Progression depuis S1</span>
+                  {([["pct", 2.5, "+2,5 %"], ["pct", 5, "+5 %"], ["reps", 1, "+1 rep"], ["kg", 2.5, "+2,5 kg"]] as const).map(([k, st, l]) => (
+                    <button key={l} type="button" onClick={() => progress(k, st)} className="rounded-full bg-panel-3 px-3 py-1.5 text-[13px] font-medium text-bleu-2 hover:bg-[#2a2a34]">{l}</button>
+                  ))}
+                </div>
+                {weeks.slice(1).map((x, j) => (
+                  <div key={j} className="ios-row">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-bleu/20 text-[11px] font-bold text-bleu-2">S{j + 2}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] text-fog">{(() => { const t = new Date(addDays(date, 7 * (j + 1)) + "T12:00:00Z").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }); return t.charAt(0).toUpperCase() + t.slice(1); })()}</span>
+                      <span className="block truncate text-[12px] text-dim">{x.items.length ? describe(x, nameOf).split("\n").join(" · ") : "Aucun mouvement"}</span>
+                    </span>
+                    <button type="button" onClick={() => { setWk(j + 1); document.getElementById("semaines")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="text-[14px] font-medium text-bleu-2">Modifier</button>
+                  </div>
+                ))}
+                <p className="px-4 py-3 text-[12px] text-dim">Chaque semaine est placée automatiquement sur le même jour, les semaines suivantes. « Modifier » permet d&apos;ajuster ses reps, ses % ou d&apos;ajouter un mouvement.</p>
+              </>
+            )}
+          </div>
         </section>
 
         {/* Consignes */}
