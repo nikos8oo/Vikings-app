@@ -186,7 +186,7 @@ export type MovementVolume = {
   total: { reps: number; cal: number; m: number; s: number; tonnage: number; sessions: number; topKg: number | null };
   last30: { reps: number; cal: number; m: number; s: number; sessions: number };
   recent: {
-    resultId: string; workoutId: string | null; date: string; title: string; format: string | null; block: string | null;
+    resultId: string; workoutId: string | null; date: string; title: string; format: string | null; variant: string | null; block: string | null;
     reps: number; cal: number; m: number; s: number; kg: number | null; asWritten: boolean; division: string;
     value: number; capped: boolean; scoreType: string | null; rpr: number | null;
   }[];
@@ -197,9 +197,9 @@ export async function movementVolume(athleteId: string, movementId: string): Pro
   type Row = {
     id: string; performed_on: string; workout_id: string | null; value: number; division: string; capped: boolean; as_written: boolean;
     volume: { mv: string; reps: number; cal: number; m: number; s: number; kg: number | null; tonnage: number }[] | null;
-    workouts: { title: string; format: string | null; block: string | null; score_type: string; reps_per_round: number | null } | null;
+    workouts: { title: string; format: string | null; variant: string | null; block: string | null; score_type: string; reps_per_round: number | null } | null;
   };
-  const rows = await fetchAll<Row>("results", "id,performed_on,workout_id,value,division,capped,as_written,volume,workouts(title,format,block,score_type,reps_per_round)",
+  const rows = await fetchAll<Row>("results", "id,performed_on,workout_id,value,division,capped,as_written,volume,workouts(title,format,variant,block,score_type,reps_per_round)",
     (q) => q.eq("athlete_id", athleteId).filter("volume", "cs", JSON.stringify([{ mv: movementId }])).order("performed_on", { ascending: false }).order("created_at", { ascending: false }));
   const since = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
   const out: MovementVolume = { total: { reps: 0, cal: 0, m: 0, s: 0, tonnage: 0, sessions: 0, topKg: null }, last30: { reps: 0, cal: 0, m: 0, s: 0, sessions: 0 }, recent: [] };
@@ -214,7 +214,7 @@ export async function movementVolume(athleteId: string, movementId: string): Pro
       l.reps += Number(v.reps) || 0; l.cal += Number(v.cal) || 0; l.m += Number(v.m) || 0; l.s += Number(v.s) || 0; l.sessions++;
     }
     if (out.recent.length < 12) out.recent.push({
-      resultId: r.id, workoutId: r.workout_id, date: r.performed_on, title: r.workouts?.title ?? "Séance", format: r.workouts?.format ?? null, block: r.workouts?.block ?? null,
+      resultId: r.id, workoutId: r.workout_id, date: r.performed_on, title: r.workouts?.title ?? "Séance", format: r.workouts?.format ?? null, variant: r.workouts?.variant ?? null, block: r.workouts?.block ?? null,
       reps: Number(v.reps) || 0, cal: Number(v.cal) || 0, m: Number(v.m) || 0, s: Number(v.s) || 0, kg: v.kg != null ? Number(v.kg) : null,
       asWritten: r.as_written, division: r.division, value: Number(r.value), capped: r.capped, scoreType: r.workouts?.score_type ?? null, rpr: r.workouts?.reps_per_round ?? null,
     });

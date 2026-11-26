@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { communityRank, getMovementMap, getResults, movementVolume } from "@/lib/data";
 import { CATEGORY_LABEL, fmtDate, fmtMetric, fmtScore, fmtTime, todayParis } from "@/lib/format";
-import { FORMATS, type Format } from "@/lib/prescription";
+import { formatLabel, type Format } from "@/lib/prescription";
 import type { ScoreType } from "@/lib/types";
 import { anchorsFor, nextTier, scoreFrom, tierOf } from "@/lib/scoring";
 import { requireMe } from "@/lib/session";
@@ -125,7 +125,7 @@ export default async function MovementPage({ params }: P) {
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold text-fog">{r.block ? `${r.block}. ` : ""}{r.title}</span>
                         <span className="block text-xs text-dim">
-                          {fmtDate(r.date, { day: "numeric", month: "short" })}{r.format ? ` · ${FORMATS[r.format as Format]?.label ?? r.format}` : ""}
+                          {fmtDate(r.date, { day: "numeric", month: "short" })}{r.format ? ` · ${formatLabel({ format: r.format as Format, variant: r.variant })}` : ""}
                           {r.scoreType && r.scoreType !== "none" && r.scoreType !== "load" ? ` · ${fmtScore(r.value, r.scoreType as ScoreType, { rpr: r.rpr, capped: r.capped })}` : ""}
                           {r.asWritten ? "" : " · modifié"}{r.division !== "rx" ? ` · ${r.division}` : ""}
                         </span>

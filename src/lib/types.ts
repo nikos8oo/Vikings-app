@@ -73,6 +73,7 @@ export type Workout = {
   rep_scheme: number[] | null;
   emom_mode: "all" | "alternate" | null;
   block: string | null;
+  variant?: string | null;
 };
 
 export type Result = {

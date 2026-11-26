@@ -4,7 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { saveWorkout } from "@/app/actions/admin";
 import { FormMessage, Submit } from "@/components/forms";
 import { CATEGORY_LABEL, fmtTime, parseTime } from "@/lib/format";
-import { computeVolume, describe, FORMATS, repsPerRound, type Format, type Item, type Rx, type SetRx } from "@/lib/prescription";
+import { computeVolume, describe, FORMATS, RESULT_BY, repsPerRound, TEMPLATES, templateOf, type ResultBy, type Template, type Format, type Item, type Rx, type SetRx } from "@/lib/prescription";
 import type { Workout } from "@/lib/types";
 
 export type Mv = { id: string; name: string; category: string; metric: string };
@@ -34,7 +34,9 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
 
   const [source, setSource] = useState<string>(w?.source ?? defaults?.source ?? "vikings");
   const [block, setBlock] = useState<string>(w?.block ?? defaults?.block ?? "");
-  const [group, setGroup] = useState<"single" | "multi">(w?.format ? FORMATS[w.format].group : "single");
+  const initTpl = w?.format ? templateOf({ format: w.format, variant: w.variant ?? null }) : null;
+  const [group, setGroup] = useState<"single" | "multi">(initTpl?.group ?? "single");
+  const [by, setBy] = useState<ResultBy>(initTpl?.by ?? "tours");
   const [weeks, setWeeks] = useState<Rx[]>(() => [{
     format: w?.format ?? "sets",
     items: w?.items?.length ? w.items : [],
@@ -44,6 +46,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
     rep_scheme: w?.rep_scheme ?? null,
     emom_mode: w?.emom_mode ?? "all",
     time_cap_s: w?.time_cap_s ?? null,
+    variant: initTpl?.id ?? "sets",
   }]);
   const [wk, setWk] = useState(0); // semaine affichée (0 = ce bloc, 1..4 = répétitions)
   const rx = weeks[Math.min(wk, weeks.length - 1)];
@@ -78,14 +81,16 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
   const patch = (p: Partial<Rx>) => setRx((r) => ({ ...r, ...p }));
   const setItem = (i: number, p: Partial<Item>) => setRx((r) => ({ ...r, items: r.items.map((it, k) => (k === i ? { ...it, ...p } : it)) }));
   const isSets = rx.format === "sets" || rx.format === "max";
-  const single = FORMATS[rx.format].group === "single" && rx.format !== "sets";
+  const tpl = templateOf(rx);
+  const single = tpl.group === "single" && !tpl.multiItems;
 
-  const chooseFormat = (f: Format) => setRx((r) => {
+  const chooseTemplate = (t: Template) => setRx((r) => {
     const items = r.items.map((it) => {
-      if (f === "sets" || f === "max") return { ...it, sets: it.sets?.length ? (f === "max" ? [{ reps: it.sets[0].reps }] : it.sets) : [{ reps: f === "max" ? 1 : 5 }] };
-      return { ...it, sets: undefined };
+      const base = { ...it, phase: t.phases ? it.phase ?? null : null };
+      if (t.engine === "sets" || t.engine === "max") return { ...base, sets: it.sets?.length ? (t.engine === "max" ? [{ reps: it.sets[0].reps }] : it.sets) : [{ reps: t.engine === "max" ? 1 : 5 }] };
+      return { ...base, sets: undefined };
     });
-    return { ...r, format: f, items: f === "max" || f === "death_by" ? items.slice(0, 1) : items };
+    return { ...r, ...t.preset, format: t.engine, variant: t.id, items: t.group === "single" && !t.multiItems ? items.slice(0, 1) : items };
   });
 
   const addMovement = (id: string) => {
@@ -141,30 +146,36 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
           </div>
         )}
 
-        {/* Format */}
+        {/* Format : modèles façon BTWB */}
         <section>
-          <h2 className="ios-head">Format</h2>
-          <div className="mb-2 px-1">
+          <h2 className="ios-head">Modèle</h2>
+          <div className="mb-2 grid gap-2 px-1">
             <div className="seg w-full">
-              <button type="button" aria-pressed={group === "single"} onClick={() => setGroup("single")} className="seg-btn">Un mouvement</button>
-              <button type="button" aria-pressed={group === "multi"} onClick={() => setGroup("multi")} className="seg-btn">Plusieurs mouvements</button>
+              <button type="button" aria-pressed={group === "single"} onClick={() => setGroup("single")} className="seg-btn">Mouvement unique</button>
+              <button type="button" aria-pressed={group === "multi"} onClick={() => setGroup("multi")} className="seg-btn">Mouvements multiples</button>
             </div>
+            {group === "multi" && (
+              <div className="flex items-center justify-between gap-3 pt-1">
+                <span className="pl-3 text-[13px] font-medium text-muted">Résultat par</span>
+                <div className="seg">{RESULT_BY.map((r) => <button key={r.id} type="button" aria-pressed={by === r.id} onClick={() => setBy(r.id)} className="seg-btn px-2.5 sm:px-3">{r.label}</button>)}</div>
+              </div>
+            )}
           </div>
           <div className="ios-group">
-            {(Object.keys(FORMATS) as Format[]).filter((f) => FORMATS[f].group === group).map((f) => (
-              <button key={f} type="button" onClick={() => chooseFormat(f)} className="ios-row w-full text-left hover:bg-white/[0.02]">
+            {TEMPLATES.filter((t) => t.group === group && (group === "single" || t.by === by)).map((t) => (
+              <button key={t.id} type="button" onClick={() => chooseTemplate(t)} className="ios-row w-full text-left hover:bg-white/[0.02]">
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] text-fog">{FORMATS[f].label}</span>
-                  <span className="block text-[12px] text-muted">{FORMATS[f].desc}</span>
+                  <span className="block text-[15px] text-fog">{t.label}</span>
+                  <span className="block text-[12px] text-muted">{t.desc}</span>
                 </span>
-                <span className={`text-lg ${rx.format === f ? "text-bleu-2" : "text-transparent"}`}>✓</span>
+                <span className={`text-lg ${tpl.id === t.id ? "text-bleu-2" : "text-transparent"}`}>✓</span>
               </button>
             ))}
           </div>
         </section>
 
         {/* Paramètres */}
-        <FormatParams key={`fp-${wk}-${rx.format}`} rx={rx} patch={patch} />
+        <FormatParams key={`fp-${wk}-${tpl.id}`} rx={rx} tpl={tpl} patch={patch} />
 
         {/* Mouvements */}
         <section>
@@ -280,43 +291,45 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
   );
 }
 
-function FormatParams({ rx, patch }: { rx: Rx; patch: (p: Partial<Rx>) => void }) {
-  const f = rx.format;
-  const rows: React.ReactNode[] = [];
-  const NumRow = ({ label, k, suffix, placeholder }: { label: string; k: "rounds" | "interval_s"; suffix?: string; placeholder?: string }) => (
-    <label key={`${k}-${label}`} className="ios-row"><span className="ios-label">{label}</span>
-      <input defaultValue={show(rx[k])} inputMode="numeric" placeholder={placeholder ?? "—"} onChange={(e) => patch({ [k]: num(e.target.value) })} className="ios-input" />
-      {suffix && <span className="text-[15px] text-dim">{suffix}</span>}</label>
-  );
-  const TimeRow = ({ label, k, placeholder }: { label: string; k: "duration_s" | "time_cap_s" | "interval_s"; placeholder: string }) => (
-    <label key={`${k}-${label}`} className="ios-row"><span className="ios-label">{label}</span>
-      <input defaultValue={rx[k] ? fmtTime(rx[k]!) : ""} placeholder={placeholder} onChange={(e) => patch({ [k]: e.target.value.trim() ? parseTime(e.target.value) : null })} className="ios-input" /></label>
-  );
-  if (f === "amrap") rows.push(TimeRow({ label: "Durée", k: "duration_s", placeholder: "16:00" }));
-  if (f === "emom") {
-    rows.push(NumRow({ label: "Nombre d'intervalles", k: "rounds", placeholder: "12" }));
-    rows.push(TimeRow({ label: "Toutes les", k: "interval_s", placeholder: "1:00" }));
-    rows.push(
-      <div key="m" className="ios-row justify-between"><span className="ios-label">Mouvements</span>
-        <div className="seg">
-          <button type="button" aria-pressed={rx.emom_mode !== "alternate"} onClick={() => patch({ emom_mode: "all" })} className="seg-btn">Tous chaque min</button>
-          <button type="button" aria-pressed={rx.emom_mode === "alternate"} onClick={() => patch({ emom_mode: "alternate" })} className="seg-btn">En alternance</button>
-        </div></div>,
+function FormatParams({ rx, tpl, patch }: { rx: Rx; tpl: Template; patch: (p: Partial<Rx>) => void }) {
+  const e = rx.format;
+  const many = tpl.params.includes("rounds");
+  const field = (pm: string): keyof Rx => (pm === "duration" ? "duration_s" : pm === "rounds" ? "rounds" : pm === "cap" ? "time_cap_s" : pm === "rest" && e === "tabata" ? "duration_s" : "interval_s");
+  const label = (pm: string) => {
+    switch (pm) {
+      case "duration": return many && (e === "amrap" || e === "amreps") ? (tpl.id === "rounds_max_reps" ? "Durée de chaque tour" : "Durée de chaque AMRAP") : "Durée";
+      case "rounds": return e === "emom" ? "Nombre d'intervalles" : (tpl.id === "amrap_repeat" || tpl.id === "amrap_series") ? "Nombre d'AMRAP" : "Tours";
+      case "rest": return "Repos";
+      case "every": return "Toutes les";
+      case "work": return tpl.id === "fgb" ? "Durée par station" : "Travail";
+      case "cap": return "Time cap";
+      default: return "Schéma de reps";
+    }
+  };
+  const ph: Record<string, string> = { duration: "12:00", rounds: e === "emom" ? "12" : e === "tabata" ? "8" : "3", rest: "1:00", every: "1:00", work: tpl.id === "fgb" ? "1:00" : "0:20", cap: "12:00" };
+  const rows = tpl.params.map((pm) => {
+    if (pm === "scheme") return (
+      <label key={pm} className="ios-row"><span className="ios-label">{label(pm)}</span>
+        <input defaultValue={rx.rep_scheme?.join("-") ?? ""} placeholder={e === "for_time" ? "21-15-9" : "3-6-9 (continue)"} onChange={(ev) => patch({ rep_scheme: ev.target.value.split(/[^0-9]+/).map(Number).filter((x) => x > 0) })} className="ios-input" /></label>
     );
-  }
-  if (f === "rft" || f === "quality") rows.push(NumRow({ label: "Tours", k: "rounds", placeholder: f === "quality" ? "1" : "5" }));
-  if (f === "intervals") { rows.push(NumRow({ label: "Intervalles", k: "rounds", placeholder: "4" })); rows.push(TimeRow({ label: "Repos", k: "interval_s", placeholder: "2:00" })); }
-  if (f === "tabata") { rows.push(NumRow({ label: "Tours", k: "rounds", placeholder: "8" })); rows.push(NumRow({ label: "Travail", k: "interval_s", suffix: "s", placeholder: "20" })); }
-  if (f === "for_time") rows.push(
-    <label key="s" className="ios-row"><span className="ios-label">Schéma de reps</span>
-      <input defaultValue={rx.rep_scheme?.join("-") ?? ""} placeholder="21-15-9 (optionnel)" onChange={(e) => patch({ rep_scheme: e.target.value.split(/[^0-9]+/).map(Number).filter((x) => x > 0) })} className="ios-input" /></label>,
-  );
-  if (f === "for_time" || f === "rft" || f === "intervals") rows.push(TimeRow({ label: "Time cap", k: "time_cap_s", placeholder: "12:00" }));
+    const k = field(pm);
+    if (pm === "rounds") return (
+      <label key={pm} className="ios-row"><span className="ios-label">{label(pm)}</span>
+        <input defaultValue={show(rx.rounds)} inputMode="numeric" placeholder={ph[pm]} onChange={(ev) => patch({ rounds: num(ev.target.value) })} className="ios-input" /></label>
+    );
+    const v = rx[k] as number | null | undefined;
+    return (
+      <label key={pm} className="ios-row"><span className="ios-label">{label(pm)}</span>
+        <input defaultValue={v ? fmtTime(v) : ""} placeholder={ph[pm]} onChange={(ev) => patch({ [k]: ev.target.value.trim() ? parseTime(ev.target.value) : null } as Partial<Rx>)} className="ios-input" /></label>
+    );
+  });
   if (!rows.length) return null;
   return (
-    <section key={f}>
-      <h2 className="ios-head">{FORMATS[f].label}</h2>
+    <section>
+      <h2 className="ios-head">{tpl.label}</h2>
       <div className="ios-group">{rows}</div>
+      {tpl.phases && <p className="ios-foot">Sur chaque mouvement, choisis Buy-in, Tours ou Buy-out.</p>}
+      {tpl.id === "amrap_series" && <p className="ios-foot">Pour des AMRAP aux mouvements différents, crée un bloc par AMRAP (parties A, B, C).</p>}
     </section>
   );
 }
@@ -340,12 +353,19 @@ function ItemCard({ it, index, rx, mv, setItem, onRemove, onMove }: {
 
   return (
     <div className="ios-group">
-      <div className="ios-row">
+      <div className="ios-row flex-wrap gap-y-2">
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-bleu/20 text-[12px] font-bold text-bleu-2">{index + 1}</span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-semibold text-fog">{mv?.name ?? it.mv}</span>
           <span className="block text-[12px] text-dim">{CATEGORY_LABEL[mv?.category ?? ""] ?? ""}</span>
         </span>
+        {templateOf(rx).phases && (
+          <div className="seg order-last w-full shrink-0 sm:order-none sm:w-auto">
+            {([["buy_in", "Buy-in"], [null, "Tours"], ["buy_out", "Buy-out"]] as const).map(([v, l]) => (
+              <button key={l} type="button" aria-pressed={(it.phase ?? null) === v} onClick={() => up({ phase: v })} className="seg-btn px-2 text-[12px]">{l}</button>
+            ))}
+          </div>
+        )}
         {rx.items.length > 1 && <>
           <button type="button" onClick={() => onMove(-1)} className="px-1 text-muted" aria-label="Monter">↑</button>
           <button type="button" onClick={() => onMove(1)} className="px-1 text-muted" aria-label="Descendre">↓</button>
@@ -395,7 +415,7 @@ function ItemCard({ it, index, rx, mv, setItem, onRemove, onMove }: {
         <>
           {rx.format !== "tabata" && FIELDS.filter((f) => shown.includes(f.k)).map((f) => (
             <div key={f.k} className="ios-row">
-              <span className="ios-label">{rx.format === "death_by" && f.k === "reps" ? "Reps ajoutées / min" : f.label}</span>
+              <span className="ios-label">{rx.format === "death_by" && f.k === "reps" ? (templateOf(rx).id === "death_by_weight" ? "Reps par intervalle" : "Reps ajoutées / intervalle") : f.label}</span>
               <span className="flex flex-1 items-center justify-end gap-1.5">
                 {f.k === "time" ? (
                   <input defaultValue={it.time_s ? fmtTime(it.time_s) : ""} placeholder="mm:ss" onChange={(e) => up({ time_s: e.target.value.trim() ? parseTime(e.target.value) : null })} className="ios-cell w-24" />

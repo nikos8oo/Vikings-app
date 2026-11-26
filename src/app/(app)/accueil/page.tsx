@@ -3,7 +3,7 @@ import Link from "next/link";
 import { computeLevel, getMovements, getResults, levelHistory } from "@/lib/data";
 import { db } from "@/lib/db";
 import { fmtDate, fmtMetric, fmtScore, todayParis } from "@/lib/format";
-import { FORMATS } from "@/lib/prescription";
+import { formatLabel } from "@/lib/prescription";
 import { monthGrid, TrainingCalendar, type DayMark } from "@/components/TrainingCalendar";
 import { TrackPicker } from "@/components/TrackPicker";
 import { DOMAINS, nextTier, tierOf } from "@/lib/scoring";
@@ -81,7 +81,7 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
                       <div className="border-b border-line bg-white/[0.02] px-4 py-2.5">
                         <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-fog">
                           {w.block ? <span className="text-lime">{w.block}. </span> : null}{w.title}
-                          {w.format && <span className="font-semibold text-muted"> · {FORMATS[w.format].label}</span>}
+                          {w.format && <span className="font-semibold text-muted"> · {formatLabel(w)}</span>}
                         </p>
                       </div>
                       <Link href={`/prog/${w.id}`} className="block px-4 py-4">

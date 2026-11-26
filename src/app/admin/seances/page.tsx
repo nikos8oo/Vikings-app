@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { db, must } from "@/lib/db";
 import { SOURCE_LABEL, todayParis } from "@/lib/format";
-import { FORMATS } from "@/lib/prescription";
+import { formatLabel } from "@/lib/prescription";
 import type { Workout } from "@/lib/types";
 import { monthGrid } from "@/components/TrainingCalendar";
 import { DuplicateNextDay, TrackSwitch } from "./PlannerControls";
@@ -124,7 +124,7 @@ export default async function Planning({ searchParams }: { searchParams: Promise
                     <div className="mt-1.5 grid gap-1">
                       {list.map((w) => (
                         <Link key={w.id} href={`/admin/seances/${w.id}`} className={`truncate rounded-md px-2 py-1 text-[12px] ${w.published ? "bg-bleu/15 text-fog" : "border border-dashed border-line-2 text-muted"} hover:bg-bleu/25`}>
-                          {w.block ? <b className="text-lime">{w.block} </b> : null}{w.format ? FORMATS[w.format].label : w.title}
+                          {w.block ? <b className="text-lime">{w.block} </b> : null}{w.format ? formatLabel(w) : w.title}
                         </Link>
                       ))}
                     </div>
@@ -145,7 +145,7 @@ function BlockCard({ w, scores }: { w: Workout; scores: number }) {
       <Link href={`/admin/seances/${w.id}`} className="block px-3 py-2.5 hover:bg-white/[0.03]">
         <div className="flex items-center gap-1.5">
           {w.block && <span className="flex h-5 w-5 items-center justify-center rounded-md bg-lime text-[11px] font-bold text-ink">{w.block}</span>}
-          <span className="truncate text-[12px] font-semibold uppercase tracking-wide text-muted">{w.format ? FORMATS[w.format].label : "Texte libre"}</span>
+          <span className="truncate text-[12px] font-semibold uppercase tracking-wide text-muted">{formatLabel(w)}</span>
         </div>
         <p className="mt-1.5 line-clamp-1 text-[13px] font-semibold text-fog">{w.title}</p>
         <p className="mt-1 line-clamp-4 whitespace-pre-line text-[12px] leading-snug text-muted">{w.description}</p>

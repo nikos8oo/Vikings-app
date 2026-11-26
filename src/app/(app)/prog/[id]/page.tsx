@@ -9,7 +9,7 @@ import { requireMe } from "@/lib/session";
 import type { Result, Workout } from "@/lib/types";
 import { ScoreForm } from "@/components/ScoreForm";
 import { StructuredLog } from "@/components/StructuredLog";
-import { FORMATS, loadFor, setsText, type Rx } from "@/lib/prescription";
+import { formatLabel, loadFor, setsText, type Rx } from "@/lib/prescription";
 import { DeleteResult } from "@/components/DeleteButton";
 import { Empty, ScoreBadge, SectionTitle, SourceTag } from "@/components/ui";
 import { Leaderboard } from "./Leaderboard";
@@ -37,7 +37,7 @@ export default async function WorkoutPage({ params }: P) {
     getMovementMap(),
   ]);
   const mine = (mineRes.data ?? []) as Result[];
-  const rx: Rx | null = w.format ? { format: w.format, items: w.items ?? [], rounds: w.rounds, duration_s: w.duration_s, interval_s: w.interval_s, rep_scheme: w.rep_scheme, emom_mode: w.emom_mode, time_cap_s: w.time_cap_s } : null;
+  const rx: Rx | null = w.format ? { format: w.format, items: w.items ?? [], rounds: w.rounds, duration_s: w.duration_s, interval_s: w.interval_s, rep_scheme: w.rep_scheme, emom_mode: w.emom_mode, time_cap_s: w.time_cap_s, variant: w.variant ?? null } : null;
   const maxes = rx ? await getMaxes(me.id, rx.items.map((i) => i.mv)) : {};
   const names = Object.fromEntries([...mmap.values()].filter((m) => w.movements.includes(m.id)).map((m) => [m.id, m.name]));
   const mine_kg = (it: Rx["items"][number]) => loadFor(it, me.sex, maxes[it.mv]);
@@ -63,7 +63,7 @@ export default async function WorkoutPage({ params }: P) {
           <section className="rise rise-1 card p-5">
             {rx ? (
               <div className="grid gap-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{FORMATS[rx.format].label}{w.block ? ` · Partie ${w.block}` : ""}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{formatLabel(rx)}{w.block ? ` · Partie ${w.block}` : ""}</p>
                 <p className="whitespace-pre-line text-[16px] leading-relaxed text-fog">{w.description}</p>
                 {rx.items.some((it) => it.pct != null || it.sets?.some((x) => x.pct != null)) && (
                   <div className="ios-group">
