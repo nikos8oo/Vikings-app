@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { communityRank, getMovementMap, getResults } from "@/lib/data";
-import { CATEGORY_LABEL, fmtDate, fmtMetric, todayParis } from "@/lib/format";
+import { communityRank, getMovementMap, getResults, movementVolume } from "@/lib/data";
+import { CATEGORY_LABEL, fmtDate, fmtMetric, fmtScore, fmtTime, todayParis } from "@/lib/format";
+import { FORMATS, type Format } from "@/lib/prescription";
+import type { ScoreType } from "@/lib/types";
 import { anchorsFor, nextTier, scoreFrom, tierOf } from "@/lib/scoring";
 import { requireMe } from "@/lib/session";
 import { ProgressChart } from "@/components/viz";
@@ -22,7 +24,13 @@ export default async function MovementPage({ params }: P) {
   const me = await requireMe();
   const m = (await getMovementMap()).get(id);
   if (!m) notFound();
-  const results = (await getResults(me.id)).filter((r) => r.movement_id === id);
+  const [allResults, vol] = await Promise.all([getResults(me.id), movementVolume(me.id, id)]);
+  const results = allResults.filter((r) => r.movement_id === id);
+  const nf = (v: number) => Math.round(v).toLocaleString("fr-FR");
+  const qty = (x: { reps: number; cal: number; m: number; s: number }) =>
+    [x.reps && `${nf(x.reps)} reps`, x.cal && `${nf(x.cal)} cal`, x.m && `${nf(x.m)} m`, x.s && fmtTime(x.s)].filter(Boolean).join(" · ") || "—";
+  // métrique principale du volume : reps, sinon calories, distance ou temps
+  const main = vol.total.reps ? { v: nf(vol.total.reps), u: "reps" } : vol.total.cal ? { v: nf(vol.total.cal), u: "cal" } : vol.total.m ? { v: nf(vol.total.m), u: "m" } : vol.total.s ? { v: fmtTime(vol.total.s), u: "" } : null;
   const anchors = anchorsFor(m, me.sex);
   const up = m.better === "higher";
   const best = results.reduce<number | null>((b, r) => (b == null || (up ? Number(r.value) > b : Number(r.value) < b) ? Number(r.value) : b), null);
@@ -76,6 +84,22 @@ export default async function MovementPage({ params }: P) {
             </div>
           </section>
 
+          <section className="rise rise-1 card p-5">
+            <p className="kicker">Volume total enregistré</p>
+            {main ? (
+              <>
+                <p className="mt-2 flex items-baseline gap-2"><span className="display text-5xl text-fog">{main.v}</span><span className="text-sm font-semibold text-muted">{main.u}</span></p>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                  <div><p className="text-[11px] text-dim">30 derniers jours</p><p className="mt-0.5 font-semibold tabular-nums text-fog">{qty(vol.last30)}</p></div>
+                  <div><p className="text-[11px] text-dim">Séances</p><p className="mt-0.5 font-semibold tabular-nums text-fog">{vol.total.sessions}</p></div>
+                  <div><p className="text-[11px] text-dim">Charge max utilisée</p><p className="mt-0.5 font-semibold tabular-nums text-fog">{vol.total.topKg != null ? `${String(vol.total.topKg).replace(".", ",")} kg` : "—"}</p></div>
+                  <div><p className="text-[11px] text-dim">Tonnage</p><p className="mt-0.5 font-semibold tabular-nums text-fog">{vol.total.tonnage ? `${nf(vol.total.tonnage)} kg` : "—"}</p></div>
+                </div>
+                {(vol.total.cal > 0 || vol.total.m > 0) && vol.total.reps > 0 && <p className="mt-3 text-xs text-dim">Aussi : {qty({ ...vol.total, reps: 0 })}</p>}
+              </>
+            ) : <p className="mt-2 text-sm text-muted">Le volume se remplit à chaque séance enregistrée qui contient ce mouvement.</p>}
+          </section>
+
           {next && nextVal != null && (
             <p className="rise rise-2 rounded-xl border border-lime/20 bg-lime/5 px-4 py-3 text-sm text-fog">
               Objectif <b className="text-lime">{next.label}</b> : {fmtMetric(nextVal, m.metric)}
@@ -92,7 +116,33 @@ export default async function MovementPage({ params }: P) {
           </section>
 
           <section className="rise rise-3">
-            <SectionTitle>Historique</SectionTitle>
+            <SectionTitle>Dernières séances avec ce mouvement</SectionTitle>
+            {vol.recent.length ? (
+              <ul className="card divide-y divide-line">
+                {vol.recent.map((r) => (
+                  <li key={r.resultId}>
+                    <Link href={r.workoutId ? `/prog/${r.workoutId}` : "#"} className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02]">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold text-fog">{r.block ? `${r.block}. ` : ""}{r.title}</span>
+                        <span className="block text-xs text-dim">
+                          {fmtDate(r.date, { day: "numeric", month: "short" })}{r.format ? ` · ${FORMATS[r.format as Format]?.label ?? r.format}` : ""}
+                          {r.scoreType && r.scoreType !== "none" && r.scoreType !== "load" ? ` · ${fmtScore(r.value, r.scoreType as ScoreType, { rpr: r.rpr, capped: r.capped })}` : ""}
+                          {r.asWritten ? "" : " · modifié"}{r.division !== "rx" ? ` · ${r.division}` : ""}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block font-semibold tabular-nums text-fog">{qty(r)}</span>
+                        {r.kg != null && <span className="block text-xs tabular-nums text-muted">@ {String(r.kg).replace(".", ",")} kg</span>}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : <Empty>Aucune séance enregistrée avec ce mouvement pour l&apos;instant.</Empty>}
+          </section>
+
+          <section className="rise rise-3">
+            <SectionTitle>Historique des perfs</SectionTitle>
             {results.length ? (
               <ul className="card divide-y divide-line">
                 {results.map((r) => (
