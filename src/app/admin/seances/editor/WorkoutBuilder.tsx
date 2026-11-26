@@ -35,7 +35,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
   const [source, setSource] = useState<string>(w?.source ?? defaults?.source ?? "vikings");
   const [block, setBlock] = useState<string>(w?.block ?? defaults?.block ?? "");
   const [group, setGroup] = useState<"single" | "multi">(w?.format ? FORMATS[w.format].group : "single");
-  const [rx, setRx] = useState<Rx>(() => ({
+  const [weeks, setWeeks] = useState<Rx[]>(() => [{
     format: w?.format ?? "sets",
     items: w?.items?.length ? w.items : [],
     rounds: w?.rounds ?? null,
@@ -44,7 +44,35 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
     rep_scheme: w?.rep_scheme ?? null,
     emom_mode: w?.emom_mode ?? "all",
     time_cap_s: w?.time_cap_s ?? null,
+  }]);
+  const [wk, setWk] = useState(0); // semaine affichée (0 = ce bloc, 1..4 = répétitions)
+  const rx = weeks[Math.min(wk, weeks.length - 1)];
+  const setRx = (fn: Rx | ((r: Rx) => Rx)) => setWeeks((ws) => ws.map((x, i) => (i === wk ? (typeof fn === "function" ? fn(x) : fn) : x)));
+  const [date, setDate] = useState<string>(w?.workout_date ?? defaults?.date ?? today);
+  const setRepeat = (n: number) => {
+    setWeeks((ws) => {
+      const out = ws.slice(0, n + 1);
+      while (out.length < n + 1) out.push(structuredClone(out[out.length - 1]));
+      return out;
+    });
+    if (wk > n) setWk(n);
+  };
+  /** Régénère les semaines suivantes depuis S1 avec une progression linéaire. */
+  const progress = (kind: "pct" | "kg" | "reps", step: number) => setWeeks((ws) => ws.map((x, k) => {
+    if (k === 0) return x;
+    const c: Rx = structuredClone(ws[0]);
+    const inc = (v: number | null | undefined) => (v == null ? v : Math.round((v + step * k) * 10) / 10);
+    c.items = c.items.map((it) => {
+      const o = { ...it };
+      if (kind === "pct") { o.pct = inc(o.pct); o.sets = o.sets?.map((st) => ({ ...st, pct: inc(st.pct) })); }
+      if (kind === "kg") { o.kg_m = inc(o.kg_m); o.kg_f = inc(o.kg_f); o.sets = o.sets?.map((st) => ({ ...st, kg_m: inc(st.kg_m), kg_f: inc(st.kg_f) })); }
+      if (kind === "reps") { o.reps = inc(o.reps); o.sets = o.sets?.map((st) => ({ ...st, reps: Math.max(1, (st.reps ?? 0) + step * k) })); }
+      return o;
+    });
+    return c;
   }));
+  const addDays = (d: string, n: number) => new Date(Date.parse(d + "T12:00:00Z") + n * 86400_000).toISOString().slice(0, 10);
+  const short = (d: string) => new Date(d + "T12:00:00Z").toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
   const [counts, setCounts] = useState(!!(w?.anchors_m || w?.counts_in_level));
 
   const patch = (p: Partial<Rx>) => setRx((r) => ({ ...r, ...p }));
@@ -77,7 +105,8 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
   return (
     <form action={action} className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
       {w && <input type="hidden" name="id" value={w.id} />}
-      <input type="hidden" name="rx" value={JSON.stringify(rx)} />
+      <input type="hidden" name="rx" value={JSON.stringify(weeks[0])} />
+      <input type="hidden" name="rx_weeks" value={JSON.stringify(weeks.slice(1))} />
       <input type="hidden" name="source" value={source} />
       <input type="hidden" name="block" value={block} />
       {returnTo && <input type="hidden" name="return" value={returnTo} />}
@@ -90,7 +119,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
             <label className="ios-row"><span className="ios-label">Titre</span>
               <input name="title" defaultValue={w?.title} required placeholder="Hiver S5 · Jeudi" className="ios-input" /></label>
             <label className="ios-row"><span className="ios-label">Date</span>
-              <input name="workout_date" type="date" defaultValue={w?.workout_date ?? defaults?.date ?? today} className="ios-input [color-scheme:dark]" /></label>
+              <input name="workout_date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="ios-input [color-scheme:dark]" /></label>
             <div className="ios-row justify-between"><span className="ios-label">Partie</span>
               <div className="seg">{BLOCKS.map((b) => <button key={b || "-"} type="button" aria-pressed={block === b} onClick={() => setBlock(b)} className="seg-btn min-w-9">{b || "—"}</button>)}</div>
             </div>
@@ -99,6 +128,40 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
             </div>
           </div>
         </section>
+
+        {/* Répétition sur les semaines suivantes */}
+        <section>
+          <h2 className="ios-head">Répéter ce bloc</h2>
+          <div className="ios-group">
+            <div className="ios-row flex-wrap justify-between gap-y-2">
+              <span className="ios-label">Semaines suivantes</span>
+              <div className="seg">{[0, 1, 2, 3, 4].map((nb) => <button key={nb} type="button" aria-pressed={weeks.length - 1 === nb} onClick={() => setRepeat(nb)} className="seg-btn min-w-10">{nb ? `+${nb}` : "Non"}</button>)}</div>
+            </div>
+            {weeks.length > 1 && (
+              <>
+                <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+                  <span className="mr-1 text-[13px] text-muted">Progression depuis S1</span>
+                  {([["pct", 2.5, "+2,5 %"], ["pct", 5, "+5 %"], ["reps", 1, "+1 rep"], ["kg", 2.5, "+2,5 kg"]] as const).map(([k, st, l]) => (
+                    <button key={l} type="button" onClick={() => progress(k, st)} className="rounded-full bg-panel-3 px-3 py-1.5 text-[13px] font-medium text-bleu-2 hover:bg-[#2a2a34]">{l}</button>
+                  ))}
+                </div>
+                <p className="px-4 pb-3 text-[12px] text-dim">Chaque semaine est un bloc à part entière : choisis un onglet ci-dessous pour modifier ses reps, ses % ou ajouter un mouvement.</p>
+              </>
+            )}
+          </div>
+        </section>
+
+        {weeks.length > 1 && (
+          <div className="sticky top-[118px] z-20 -mx-1 rounded-[14px] bg-ink/85 px-1 py-2 backdrop-blur-xl">
+            <div className="seg w-full">
+              {weeks.map((_, k) => (
+                <button key={k} type="button" aria-pressed={wk === k} onClick={() => setWk(k)} className="seg-btn py-2">
+                  <span className="block">S{k + 1}</span><span className="block text-[11px] font-normal text-dim">{short(addDays(date, 7 * k))}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Format */}
         <section>
@@ -123,14 +186,14 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
         </section>
 
         {/* Paramètres */}
-        <FormatParams rx={rx} patch={patch} />
+        <FormatParams key={`fp-${wk}-${rx.format}`} rx={rx} patch={patch} />
 
         {/* Mouvements */}
         <section>
           <h2 className="ios-head">Mouvements</h2>
           <div className="grid gap-3">
             {rx.items.map((it, i) => (
-              <ItemCard key={`${i}-${it.mv}`} it={it} index={i} rx={rx} mv={mmap.get(it.mv)} setItem={setItem}
+              <ItemCard key={`${wk}-${i}-${it.mv}`} it={it} index={i} rx={rx} mv={mmap.get(it.mv)} setItem={setItem}
                 onRemove={() => patch({ items: rx.items.filter((_, k) => k !== i) })}
                 onMove={(d) => { const a = [...rx.items]; const j = i + d; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; patch({ items: a }); }} />
             ))}
@@ -177,7 +240,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
 
         <div className="sticky bottom-0 z-10 -mx-4 grid gap-2 border-t border-line bg-ink/85 px-4 py-3 backdrop-blur-xl lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0">
           <FormMessage state={state} />
-          <Submit className="btn-lime w-full py-3.5 lg:w-auto lg:justify-self-start lg:px-10" pending="Enregistrement…">{w ? "Enregistrer" : "Créer la séance"}</Submit>
+          <Submit className="btn-lime w-full py-3.5 lg:w-auto lg:justify-self-start lg:px-10" pending="Enregistrement…">{w ? (weeks.length > 1 ? `Enregistrer + ${weeks.length - 1} semaine${weeks.length > 2 ? "s" : ""}` : "Enregistrer") : weeks.length > 1 ? `Créer ${weeks.length} blocs` : "Créer la séance"}</Submit>
         </div>
       </div>
 
@@ -185,7 +248,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
       <aside className="grid gap-3 lg:sticky lg:top-6">
         <h2 className="ios-head">Aperçu athlète</h2>
         <div className="ios-group p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{FORMATS[rx.format].label}{block ? ` · Partie ${block}` : ""}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{FORMATS[rx.format].label}{block ? ` · Partie ${block}` : ""}{weeks.length > 1 ? ` · S${wk + 1} (${short(addDays(date, 7 * wk))})` : ""}</p>
           {preview ? <p className="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-fog">{preview}</p>
             : <p className="mt-3 text-[14px] text-dim">Ajoute un mouvement pour voir la séance.</p>}
         </div>

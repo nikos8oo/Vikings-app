@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { parseNum, parseTime } from "@/lib/format";
+import { parseNum, parseTime, todayParis } from "@/lib/format";
 import { requireAdmin, requireStaff } from "@/lib/session";
 import { describe, FORMATS, repsPerRound, sanitizeRx, type Rx } from "@/lib/prescription";
 import type { Anchors } from "@/lib/types";
@@ -91,18 +91,58 @@ export async function saveWorkout(_: AdminState, f: FormData): Promise<AdminStat
     counts_in_level: counts,
     published: f.get("published") === "on",
   };
+  // Semaines suivantes (répétition du bloc, chacune modifiable) : validées avant tout enregistrement
+  const extra: typeof row[] = [];
+  if (rx && str(f, "rx_weeks")) {
+    let rawWeeks: unknown;
+    try { rawWeeks = JSON.parse(str(f, "rx_weeks")); } catch { return { error: "Semaines illisibles, recharge la page." }; }
+    const list = Array.isArray(rawWeeks) ? rawWeeks.slice(0, 4) : [];
+    const base = row.workout_date ?? todayParis();
+    for (let k = 0; k < list.length; k++) {
+      const wx = sanitizeRx(list[k]);
+      if (typeof wx === "string") return { error: `Semaine ${k + 2} : ${wx}` };
+      const ids = [...new Set(wx.items.map((i) => i.mv))];
+      const { data: known } = await db().from("movements").select("id,name").in("id", ids);
+      const names = new Map((known ?? []).map((m) => [m.id as string, m.name as string]));
+      if (names.size !== ids.length) return { error: `Semaine ${k + 2} : un mouvement est inconnu.` };
+      const date = new Date(Date.parse(base + "T12:00:00Z") + 7 * (k + 1) * 86400_000).toISOString().slice(0, 10);
+      extra.push({
+        ...row,
+        workout_date: date,
+        description: describe(wx, (i) => names.get(i) ?? i),
+        score_type: FORMATS[wx.format].score,
+        better: FORMATS[wx.format].better,
+        reps_per_round: wx.format === "amrap" ? repsPerRound(wx) || null : null,
+        time_cap_s: wx.time_cap_s ?? null,
+        movement_id: wx.format === "max" || (wx.format === "sets" && wx.items.length === 1) ? wx.items[0].mv : null,
+        movements: ids,
+        format: wx.format, items: wx.items, rounds: wx.rounds ?? null, duration_s: wx.duration_s ?? null, interval_s: wx.interval_s ?? null,
+        rep_scheme: wx.rep_scheme?.length ? wx.rep_scheme : null, emom_mode: wx.emom_mode ?? null,
+      });
+    }
+  }
+  const insertExtra = async () => {
+    if (!extra.length) return null;
+    const { error } = await db().from("workouts").insert(extra.map((e) => ({ ...e, created_by: me.id })));
+    return error ? error.message : null;
+  };
+
   if (id) {
     const { error } = await db().from("workouts").update(row).eq("id", id);
     if (error) return { error: error.message };
+    const e2 = await insertExtra();
+    if (e2) return { error: e2 };
   } else {
     const { data, error } = await db().from("workouts").insert({ ...row, created_by: me.id }).select("id").single();
     if (error) return { error: error.message };
+    const e2 = await insertExtra();
+    if (e2) return { error: `Bloc créé, mais pas les semaines suivantes : ${e2}` };
     revalidatePath("/", "layout");
     redirect(ret ?? `/admin/seances/${data.id}?ok=1`);
   }
   revalidatePath("/", "layout");
   if (ret) redirect(ret);
-  return { ok: "Séance enregistrée." };
+  return { ok: extra.length ? `Séance enregistrée + ${extra.length} semaine${extra.length > 1 ? "s" : ""} créée${extra.length > 1 ? "s" : ""}.` : "Séance enregistrée." };
 }
 
 export async function deleteWorkout(id: string) {
