@@ -130,7 +130,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
         </section>
 
         {weeks.length > 1 && (
-          <div id="semaines" className="scroll-mt-32 sticky top-[118px] z-20 -mx-1 rounded-[14px] bg-ink/85 px-1 py-2 backdrop-blur-xl">
+          <div id="semaines" className="scroll-mt-32 sticky top-[96px] z-20 -mx-1 rounded-[14px] bg-canvas/85 px-1 py-2 backdrop-blur-xl">
             <div className="seg w-full">
               {weeks.map((_, k) => (
                 <button key={k} type="button" aria-pressed={wk === k} onClick={() => setWk(k)} className="seg-btn py-2">
@@ -248,14 +248,14 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
           </div>
         </section>
 
-        <div className="sticky bottom-0 z-10 -mx-4 grid gap-2 border-t border-line bg-ink/85 px-4 py-3 backdrop-blur-xl lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0">
+        <div className="sticky bottom-0 z-10 -mx-4 grid gap-2 border-t border-line bg-canvas/85 px-4 py-3 backdrop-blur-xl lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0">
           <FormMessage state={state} />
           <Submit className="btn-lime w-full py-3.5 lg:w-auto lg:justify-self-start lg:px-10" pending="Enregistrement…">{w ? (weeks.length > 1 ? `Enregistrer + ${weeks.length - 1} semaine${weeks.length > 2 ? "s" : ""}` : "Enregistrer") : weeks.length > 1 ? `Créer ${weeks.length} blocs` : "Créer la séance"}</Submit>
         </div>
       </div>
 
       {/* Aperçu */}
-      <aside className="grid gap-3 lg:sticky lg:top-6">
+      <aside className="grid gap-3 lg:sticky lg:top-[104px] lg:max-h-[calc(100dvh-120px)] lg:overflow-y-auto no-scrollbar">
         <h2 className="ios-head">Aperçu athlète</h2>
         <div className="ios-group p-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{FORMATS[rx.format].label}{block ? ` · Partie ${block}` : ""}{weeks.length > 1 ? ` · S${wk + 1} (${short(addDays(date, 7 * wk))})` : ""}</p>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { cookies } from "next/headers";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,9 +19,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const theme = (await cookies()).get("va_theme")?.value === "light" ? "light" : "dark";
   return (
-    <html lang="fr">
+    <html lang="fr" data-theme={theme}>
       <body className={`${GeistSans.variable} ${GeistMono.variable} aurora min-h-dvh antialiased`}>
         <div className="watermark" aria-hidden />
         <div className="relative z-10">{children}</div>

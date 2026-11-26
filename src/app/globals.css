@@ -1,8 +1,9 @@
 @import "tailwindcss";
 @import "@fontsource/anton/400.css";
 
-@theme inline {
+@theme {
   --color-ink: #050505;
+  --color-canvas: #050505;
   --color-panel: #0e0e12;
   --color-panel-2: #16161c;
   --color-panel-3: #1e1e26;
@@ -20,9 +21,9 @@
   --font-display: "Anton", Impact, "Arial Narrow", sans-serif;
 }
 
-html { color-scheme: dark; background: var(--color-ink); }
+html { color-scheme: dark; background: var(--color-canvas); }
 body {
-  background: var(--color-ink);
+  background: var(--color-canvas);
   color: var(--color-fog);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
@@ -33,7 +34,7 @@ body {
   background:
     radial-gradient(900px 520px at -10% -10%, rgb(46 90 239 / 0.22), transparent 60%),
     radial-gradient(700px 420px at 110% 0%, rgb(209 236 45 / 0.07), transparent 60%),
-    var(--color-ink);
+    var(--color-canvas);
 }
 
 .watermark {
@@ -95,3 +96,40 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 @utility round-btn {
   @apply inline-flex h-8 w-8 items-center justify-center rounded-full bg-panel-3 text-lg leading-none text-fog transition active:scale-95 disabled:opacity-30;
 }
+
+/* ---------- Version blanche (thème clair façon Apple) ---------- */
+[data-theme="light"] {
+  color-scheme: light;
+  --color-canvas: #f2f2f7;
+  --color-panel: #ffffff;
+  --color-panel-2: #ffffff;
+  --color-panel-3: #e9e9ef;
+  --color-line: rgb(0 0 0 / 0.08);
+  --color-line-2: rgb(0 0 0 / 0.14);
+  --color-fog: #111114;
+  --color-muted: #6c6c74;
+  --color-dim: #9b9ba4;
+  --color-bleu-2: #2648d8;
+  --color-danger: #e5383b;
+}
+[data-theme="light"] .aurora {
+  background:
+    radial-gradient(900px 520px at -10% -10%, rgb(46 90 239 / 0.10), transparent 60%),
+    radial-gradient(700px 420px at 110% 0%, rgb(209 236 45 / 0.12), transparent 60%),
+    var(--color-canvas);
+}
+[data-theme="light"] .watermark { filter: invert(1); opacity: 0.035; }
+[data-theme="light"] img[src*="mark-white"], [data-theme="light"] img[src*="logo-white"] { filter: invert(1); }
+[data-theme="light"] .card, [data-theme="light"] .glass {
+  background: #ffffff;
+  border-color: rgb(0 0 0 / 0.06);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px -6px rgb(0 0 0 / 0.08);
+  backdrop-filter: none;
+}
+[data-theme="light"] .ios-group { background: #ffffff; border-color: rgb(0 0 0 / 0.06); }
+[data-theme="light"] .seg-btn[aria-pressed="true"] { background: #ffffff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.04); }
+/* le lime reste en fond ; en texte il est assombri pour rester lisible sur blanc */
+[data-theme="light"] .text-lime { color: #5a6b00; }
+[data-theme="light"] .border-lime\/40, [data-theme="light"] .border-lime\/50 { border-color: rgb(120 140 0 / 0.45); }
+[data-theme="light"] .text-\[\#a8c3ff\], [data-theme="light"] .text-\[\#9fb5ff\] { color: #2648d8; }
+[data-theme="light"] .btn-ghost { background: #ffffff; }

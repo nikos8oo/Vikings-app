@@ -7,7 +7,7 @@ import {
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 
-const BLEU = "#2e5aef", LIME = "#d1ec2d", FOG = "#e4e1e6", MUTED = "#8d8a98", LINE = "rgba(228,225,230,0.08)";
+const BLEU = "var(--color-bleu)", LIME = "#d1ec2d", FOG = "var(--color-fog)", MUTED = "var(--color-muted)", LINE = "var(--color-line)";
 
 /** Anneau de niveau 0-100 : arc bleu → lime, compteur animé. */
 export function LevelRing({ value, size = 200, tier, provisional }: { value: number | null; size?: number; tier: string; provisional?: boolean }) {
@@ -91,7 +91,7 @@ export function ProgressChart({ data, format, invert, refLines = [] }: {
         ))}
         <Tooltip
           cursor={{ stroke: "rgba(228,225,230,0.2)" }}
-          contentStyle={{ background: "#16161c", border: "1px solid rgba(228,225,230,0.12)", borderRadius: 12, color: FOG, fontSize: 12 }}
+          contentStyle={{ background: "var(--color-panel-2)", border: "1px solid var(--color-line-2)", borderRadius: 12, color: FOG, fontSize: 12 }}
           labelFormatter={(l) => fd(String(l))}
           formatter={(v) => [fmt(Number(v)), format === "level" ? "Niveau" : "Perf"]}
         />

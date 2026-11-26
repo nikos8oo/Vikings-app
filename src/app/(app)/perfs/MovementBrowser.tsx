@@ -25,7 +25,7 @@ export function MovementBrowser({ items }: { items: Item[] }) {
 
   return (
     <div className="mt-6">
-      <div className="sticky top-[68px] z-20 -mx-5 bg-ink/80 px-5 pb-3 pt-1 backdrop-blur-xl">
+      <div className="sticky top-[68px] z-20 -mx-5 bg-canvas/80 px-5 pb-3 pt-1 backdrop-blur-xl">
         <div className="relative">
           <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dim" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un mouvement…" className="field pl-10" />
