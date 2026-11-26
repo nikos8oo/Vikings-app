@@ -7,7 +7,7 @@ export function AdminNav({ admin }: { admin: boolean }) {
   const path = usePathname();
   const items = [
     ["/admin", "Tableau de bord"],
-    ["/admin/seances", "Séances"],
+    ["/admin/seances", "Planning"],
     ["/admin/athletes", "Athlètes"],
     ["/admin/box", "Box"],
     ...(admin ? [["/admin/baremes", "Barèmes"]] : []),

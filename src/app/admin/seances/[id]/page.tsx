@@ -20,17 +20,18 @@ export default async function EditSeance({ params, searchParams }: { params: Pro
   const w = data as Workout;
   const [movements, board] = await Promise.all([getMovements(), leaderboard(w)]);
   const mvs = movements.map((m) => ({ id: m.id, name: m.name, category: m.category, metric: m.metric }));
+  const back = `/admin/seances?p=${w.source}&d=${w.workout_date}`;
   if (w.format) return (
     <div className="mx-auto grid max-w-5xl gap-6">
       <div>
-        <Link href="/admin/seances" className="text-[13px] font-medium text-bleu-2">‹ Séances</Link>
+        <Link href={back} className="text-[13px] font-medium text-bleu-2">‹ Planning</Link>
         <div className="mt-2 flex items-center justify-between gap-3">
           <h1 className="text-[32px] font-bold tracking-tight text-fog">{w.title}</h1>
           <Link href={`/prog/${w.id}`} className="text-[13px] font-medium text-bleu-2">Vue athlète</Link>
         </div>
         {ok && <p className="mt-3 rounded-xl bg-lime/10 px-4 py-2.5 text-sm text-lime">Séance créée. Les athlètes peuvent entrer leur score.</p>}
       </div>
-      <WorkoutBuilder w={w} movements={mvs} today={todayParis()} />
+      <WorkoutBuilder w={w} movements={mvs} today={todayParis()} returnTo={back} />
       <ScoresList board={board} w={w} />
       <DeleteWorkoutButton id={w.id} />
     </div>

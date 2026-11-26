@@ -36,6 +36,8 @@ export async function saveWorkout(_: AdminState, f: FormData): Promise<AdminStat
   const id = str(f, "id");
   const title = str(f, "title");
   const source = str(f, "source");
+  const retRaw = str(f, "return");
+  const ret = /^\/admin\/seances(\?[\w=&%-]*)?$/.test(retRaw) ? retRaw : null; // retour au planning uniquement
   if (!title) return { error: "Titre obligatoire." };
   if (!SOURCES.includes(source)) return { error: "Source invalide." };
 
@@ -96,9 +98,10 @@ export async function saveWorkout(_: AdminState, f: FormData): Promise<AdminStat
     const { data, error } = await db().from("workouts").insert({ ...row, created_by: me.id }).select("id").single();
     if (error) return { error: error.message };
     revalidatePath("/", "layout");
-    redirect(`/admin/seances/${data.id}?ok=1`);
+    redirect(ret ?? `/admin/seances/${data.id}?ok=1`);
   }
   revalidatePath("/", "layout");
+  if (ret) redirect(ret);
   return { ok: "Séance enregistrée." };
 }
 
@@ -185,5 +188,16 @@ export async function createMovement(_: AdminState, f: FormData): Promise<AdminS
 export async function setMovementActive(id: string, active: boolean) {
   await requireAdmin();
   await db().from("movements").update({ active }).eq("id", id);
+  revalidatePath("/", "layout");
+}
+
+/** Duplique une séance à une autre date (même programme, même partie). */
+export async function duplicateWorkout(id: string, date: string) {
+  await requireStaff();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+  const { data } = await db().from("workouts").select("*").eq("id", id).single();
+  if (!data) return;
+  const { id: _id, created_at: _c, ...copy } = data as Record<string, unknown>; // eslint-disable-line @typescript-eslint/no-unused-vars
+  await db().from("workouts").insert({ ...copy, workout_date: date });
   revalidatePath("/", "layout");
 }

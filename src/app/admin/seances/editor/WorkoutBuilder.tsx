@@ -25,13 +25,15 @@ const FIELDS: { k: Field; label: string; unit: string; m: "reps" | "cal" | "dist
 const num = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")));
 const show = (v: number | null | undefined) => (v == null ? "" : String(v).replace(".", ","));
 
-export function WorkoutBuilder({ w, movements, today }: { w?: Workout; movements: Mv[]; today: string }) {
+export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
+  w?: Workout; movements: Mv[]; today: string; defaults?: { date?: string; source?: string; block?: string }; returnTo?: string;
+}) {
   const [state, action] = useActionState(saveWorkout, null);
   const mmap = useMemo(() => new Map(movements.map((m) => [m.id, m])), [movements]);
   const nameOf = (id: string) => mmap.get(id)?.name ?? id;
 
-  const [source, setSource] = useState<string>(w?.source ?? "vikings");
-  const [block, setBlock] = useState<string>(w?.block ?? "");
+  const [source, setSource] = useState<string>(w?.source ?? defaults?.source ?? "vikings");
+  const [block, setBlock] = useState<string>(w?.block ?? defaults?.block ?? "");
   const [group, setGroup] = useState<"single" | "multi">(w?.format ? FORMATS[w.format].group : "single");
   const [rx, setRx] = useState<Rx>(() => ({
     format: w?.format ?? "sets",
@@ -78,6 +80,7 @@ export function WorkoutBuilder({ w, movements, today }: { w?: Workout; movements
       <input type="hidden" name="rx" value={JSON.stringify(rx)} />
       <input type="hidden" name="source" value={source} />
       <input type="hidden" name="block" value={block} />
+      {returnTo && <input type="hidden" name="return" value={returnTo} />}
 
       <div className="grid gap-7">
         {/* Séance */}
@@ -87,7 +90,7 @@ export function WorkoutBuilder({ w, movements, today }: { w?: Workout; movements
             <label className="ios-row"><span className="ios-label">Titre</span>
               <input name="title" defaultValue={w?.title} required placeholder="Hiver S5 · Jeudi" className="ios-input" /></label>
             <label className="ios-row"><span className="ios-label">Date</span>
-              <input name="workout_date" type="date" defaultValue={w?.workout_date ?? today} className="ios-input [color-scheme:dark]" /></label>
+              <input name="workout_date" type="date" defaultValue={w?.workout_date ?? defaults?.date ?? today} className="ios-input [color-scheme:dark]" /></label>
             <div className="ios-row justify-between"><span className="ios-label">Partie</span>
               <div className="seg">{BLOCKS.map((b) => <button key={b || "-"} type="button" aria-pressed={block === b} onClick={() => setBlock(b)} className="seg-btn min-w-9">{b || "—"}</button>)}</div>
             </div>
