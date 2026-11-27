@@ -111,7 +111,7 @@ export default async function Planning({ searchParams }: { searchParams: Promise
                     <span className={`text-[12px] font-semibold uppercase tracking-wider ${isToday ? "text-lime" : "text-muted"}`}>{WD[i]}</span>
                     <span className={`text-[20px] font-bold tabular-nums ${isToday ? "text-lime" : "text-fog"}`}>{Number(d.slice(8))}</span>
                   </div>
-                  <div className="grid gap-1">
+                  <div data-list className="grid gap-1">
                     {list.map((w) => <DragBlock key={w.id} id={w.id}><BlockCard w={w} scores={scores.get(w.id) ?? 0} /></DragBlock>)}
                   </div>
                   <Link href={addUrl(d)} className="mt-2 flex items-center justify-center rounded-xl border border-dashed border-line-2 py-2.5 text-[13px] font-semibold text-bleu-2 transition hover:border-bleu hover:bg-bleu/5">
@@ -138,7 +138,7 @@ export default async function Planning({ searchParams }: { searchParams: Promise
                       <Link href={url({ v: "week", d })} className={`text-[14px] font-bold tabular-nums ${isToday ? "text-lime" : "text-fog"} hover:underline`}>{Number(d.slice(8))}</Link>
                       <Link href={addUrl(d)} className="rounded-full px-1.5 text-[16px] leading-none text-dim opacity-60 transition hover:text-bleu-2 group-hover:opacity-100" aria-label="Ajouter un bloc">+</Link>
                     </div>
-                    <div className="mt-1.5 grid gap-1">
+                    <div data-list className="mt-1.5 grid gap-1">
                       {list.map((w) => (
                         <DragBlock key={w.id} id={w.id}><Link href={`/admin/seances/${w.id}`} className={`block truncate rounded-md px-2 py-1 text-[12px] ${w.published ? "bg-bleu/15 text-fog" : "border border-dashed border-line-2 text-muted"} hover:bg-bleu/25`}
                           style={blockStyle(w.color, "chip")}>

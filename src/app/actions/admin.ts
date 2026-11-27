@@ -253,17 +253,33 @@ export async function setMovementPattern(id: string, pattern: string | null) {
   revalidatePath("/", "layout");
 }
 
-/** Déplace un bloc à un autre jour (glisser-déposer du planning). La lettre change si elle est déjà prise ce jour-là. */
-export async function moveWorkout(id: string, date: string) {
+/** Déplace un bloc (glisser-déposer) : autre jour et/ou position dans la journée. Les lettres A, B, C… suivent le nouvel ordre. */
+export async function moveWorkout(id: string, date: string, index?: number) {
   await requireStaff();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
   const { data: w } = await db().from("workouts").select("id,source,subtrack,block,workout_date").eq("id", id).single();
-  if (!w || w.workout_date === date) return;
-  let q = db().from("workouts").select("block").eq("source", w.source).eq("workout_date", date);
+  if (!w) return;
+  let q = db().from("workouts").select("id,block").eq("source", w.source).eq("workout_date", date).neq("id", id)
+    .order("block", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true });
   q = w.subtrack ? q.eq("subtrack", w.subtrack) : q.is("subtrack", null);
-  const used = new Set(((await q).data ?? []).map((r: { block: string | null }) => r.block).filter(Boolean));
-  const block = w.block && used.has(w.block) ? (["A", "B", "C", "D", "E", "F"].find((b) => !used.has(b)) ?? w.block) : w.block;
-  await db().from("workouts").update({ workout_date: date, block }).eq("id", id);
+  const day = ((await q).data ?? []) as { id: string; block: string | null }[];
+  const at = index == null ? day.length : Math.max(0, Math.min(index, day.length));
+  const order = [...day.slice(0, at), { id, block: w.block }, ...day.slice(at)];
+  const letters = "ABCDEFGHIJ";
+  await Promise.all(order.map((o, i) => {
+    const patch: Record<string, string> = {};
+    if (o.block !== letters[i]) patch.block = letters[i];
+    if (o.id === id && w.workout_date !== date) patch.workout_date = date;
+    return Object.keys(patch).length ? db().from("workouts").update(patch).eq("id", o.id) : null;
+  }));
+  // L'ancienne journée se renumérote aussi pour ne pas laisser de trou (A, C → A, B)
+  if (w.workout_date !== date) {
+    let o = db().from("workouts").select("id,block").eq("source", w.source).eq("workout_date", w.workout_date)
+      .order("block", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true });
+    o = w.subtrack ? o.eq("subtrack", w.subtrack) : o.is("subtrack", null);
+    const old = ((await o).data ?? []) as { id: string; block: string | null }[];
+    await Promise.all(old.map((r, i) => (r.block !== letters[i] ? db().from("workouts").update({ block: letters[i] }).eq("id", r.id) : null)));
+  }
   revalidatePath("/", "layout");
 }
 

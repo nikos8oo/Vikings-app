@@ -50,16 +50,17 @@ export function DuplicateNextDay({ id, date }: { id: string; date: string }) {
   );
 }
 
-/* ---------- Glisser-déposer des blocs entre les jours ---------- */
+/* ---------- Glisser-déposer des blocs (autre jour, ou réordonner dans la journée) ---------- */
 const DND = "text/va-block";
+let dragging: string | null = null; // id du bloc en cours de déplacement (dataTransfer illisible pendant le survol)
 
 /** Bloc déplaçable : on l'attrape n'importe où, la poignée apparaît au survol. */
 export function DragBlock({ id, children }: { id: string; children: React.ReactNode }) {
   const [drag, setDrag] = useState(false);
   return (
-    <div draggable
-      onDragStart={(e) => { e.dataTransfer.setData(DND, id); e.dataTransfer.effectAllowed = "move"; setTimeout(() => setDrag(true), 0); }}
-      onDragEnd={() => setDrag(false)}
+    <div draggable data-block={id}
+      onDragStart={(e) => { dragging = id; e.dataTransfer.setData(DND, id); e.dataTransfer.effectAllowed = "move"; setTimeout(() => setDrag(true), 0); }}
+      onDragEnd={() => { dragging = null; setDrag(false); }}
       className={`group/drag relative min-w-0 cursor-grab active:cursor-grabbing ${drag ? "opacity-30" : ""}`}>
       <span aria-hidden className="pointer-events-none absolute right-1.5 top-1.5 z-10 rounded-md bg-canvas/80 px-1 text-[11px] leading-4 text-dim opacity-0 transition group-hover/drag:opacity-100">⠿</span>
       {children}
@@ -67,28 +68,53 @@ export function DragBlock({ id, children }: { id: string; children: React.ReactN
   );
 }
 
-/** Jour qui accepte un bloc : surbrillance + emplacement « Déposer ici » pendant le survol. */
+/** Jour qui accepte un bloc : une ligne bleue montre où il va s'insérer (au-dessus, en dessous, entre deux). */
 export function DropDay({ date, className, children }: { date: string; className?: string; children: React.ReactNode }) {
   const router = useRouter();
-  const [over, setOver] = useState(false);
+  const [spot, setSpot] = useState<{ index: number; top: number } | null>(null);
   const [pending, start] = useTransition();
+
+  const locate = (el: HTMLElement, y: number) => {
+    const box = el.getBoundingClientRect();
+    const others = [...el.querySelectorAll<HTMLElement>("[data-block]")].filter((b) => b.dataset.block !== dragging);
+    let index = others.length;
+    for (let i = 0; i < others.length; i++) {
+      const r = others[i].getBoundingClientRect();
+      if (y < r.top + r.height / 2) { index = i; break; }
+    }
+    let top: number;
+    if (!others.length) {
+      const list = el.querySelector<HTMLElement>("[data-list]");
+      top = (list ? list.getBoundingClientRect().top : box.top + 40) - box.top;
+    } else if (index < others.length) top = others[index].getBoundingClientRect().top - box.top - 3;
+    else top = others[others.length - 1].getBoundingClientRect().bottom - box.top + 1;
+    return { index, top };
+  };
+
   return (
     <div
-      onDragOver={(e) => { if (e.dataTransfer.types.includes(DND)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (!over) setOver(true); } }}
-      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(false); }}
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes(DND)) return;
+        e.preventDefault(); e.dataTransfer.dropEffect = "move";
+        const s = locate(e.currentTarget, e.clientY);
+        if (!spot || s.index !== spot.index || Math.abs(s.top - spot.top) > 1) setSpot(s);
+      }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setSpot(null); }}
       onDrop={(e) => {
         const id = e.dataTransfer.getData(DND);
-        setOver(false);
+        const s = locate(e.currentTarget, e.clientY);
+        setSpot(null);
         if (!id) return;
         e.preventDefault();
-        start(async () => { await moveWorkout(id, date); router.refresh(); });
+        start(async () => { await moveWorkout(id, date, s.index); router.refresh(); });
       }}
-      className={`${className ?? ""} min-w-0 transition-colors ${over ? "!border-bleu !bg-bleu/[0.06]" : ""}`}>
+      className={`${className ?? ""} relative min-w-0 transition-colors ${spot ? "!border-bleu/70 !bg-bleu/[0.04]" : ""} ${pending ? "opacity-60" : ""}`}>
       {children}
-      {(over || pending) && (
-        <div className="mx-1 mt-1 rounded-xl border-2 border-dashed border-bleu/60 py-3 text-center text-[12px] font-semibold text-bleu-2">
-          {pending ? "Déplacement…" : "Déposer ici"}
-        </div>
+      {spot && (
+        <span aria-hidden className="pointer-events-none absolute inset-x-1.5 z-20 flex items-center" style={{ top: spot.top }}>
+          <span className="h-2 w-2 -ml-0.5 rounded-full border-2 border-bleu bg-canvas" />
+          <span className="h-[2px] flex-1 rounded-full bg-bleu" />
+        </span>
       )}
     </div>
   );
