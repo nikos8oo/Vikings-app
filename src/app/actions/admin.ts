@@ -253,6 +253,20 @@ export async function setMovementPattern(id: string, pattern: string | null) {
   revalidatePath("/", "layout");
 }
 
+/** Déplace un bloc à un autre jour (glisser-déposer du planning). La lettre change si elle est déjà prise ce jour-là. */
+export async function moveWorkout(id: string, date: string) {
+  await requireStaff();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+  const { data: w } = await db().from("workouts").select("id,source,subtrack,block,workout_date").eq("id", id).single();
+  if (!w || w.workout_date === date) return;
+  let q = db().from("workouts").select("block").eq("source", w.source).eq("workout_date", date);
+  q = w.subtrack ? q.eq("subtrack", w.subtrack) : q.is("subtrack", null);
+  const used = new Set(((await q).data ?? []).map((r: { block: string | null }) => r.block).filter(Boolean));
+  const block = w.block && used.has(w.block) ? (["A", "B", "C", "D", "E", "F"].find((b) => !used.has(b)) ?? w.block) : w.block;
+  await db().from("workouts").update({ workout_date: date, block }).eq("id", id);
+  revalidatePath("/", "layout");
+}
+
 /** Duplique une séance à une autre date (même programme, même partie). */
 export async function duplicateWorkout(id: string, date: string) {
   await requireStaff();

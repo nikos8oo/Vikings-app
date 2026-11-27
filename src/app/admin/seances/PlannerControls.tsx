@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
-import { duplicateWorkout } from "@/app/actions/admin";
+import { useState, useTransition } from "react";
+import { duplicateWorkout, moveWorkout } from "@/app/actions/admin";
 import { SUBTRACKS, trackLabel } from "@/lib/tracks";
 
 /** Programme / piste sur lequel l'admin travaille (mémorisé dans un cookie). */
@@ -47,5 +47,39 @@ export function DuplicateNextDay({ id, date }: { id: string; date: string }) {
       className="text-[11px] font-medium text-muted hover:text-fog disabled:opacity-50" title="Copier ce bloc au jour suivant">
       {pending ? "Copie…" : "Copier → J+1"}
     </button>
+  );
+}
+
+/* ---------- Glisser-déposer des blocs entre les jours ---------- */
+const DND = "text/va-block";
+
+export function DragBlock({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <div draggable onDragStart={(e) => { e.dataTransfer.setData(DND, id); e.dataTransfer.effectAllowed = "move"; (e.currentTarget as HTMLElement).style.opacity = "0.4"; }}
+      onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = ""; }}
+      className="cursor-grab active:cursor-grabbing">
+      {children}
+    </div>
+  );
+}
+
+export function DropDay({ date, className, children }: { date: string; className?: string; children: React.ReactNode }) {
+  const router = useRouter();
+  const [over, setOver] = useState(false);
+  const [pending, start] = useTransition();
+  return (
+    <div
+      onDragOver={(e) => { if (e.dataTransfer.types.includes(DND)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setOver(true); } }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(false); }}
+      onDrop={(e) => {
+        const id = e.dataTransfer.getData(DND);
+        setOver(false);
+        if (!id) return;
+        e.preventDefault();
+        start(async () => { await moveWorkout(id, date); router.refresh(); });
+      }}
+      className={`${className ?? ""} transition ${over ? "!border-bleu ring-2 ring-bleu/30" : ""} ${pending ? "opacity-60" : ""}`}>
+      {children}
+    </div>
   );
 }

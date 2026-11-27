@@ -9,7 +9,7 @@ import { parseTrack, TRACK_KEYS, trackLabel } from "@/lib/tracks";
 import { formatLabel } from "@/lib/prescription";
 import type { Workout } from "@/lib/types";
 import { monthGrid } from "@/components/TrainingCalendar";
-import { TrackSwitch } from "./PlannerControls";
+import { DragBlock, DropDay, TrackSwitch } from "./PlannerControls";
 import { BlockCard } from "./BlockCard";
 
 export const metadata: Metadata = { title: "Planning" };
@@ -106,18 +106,18 @@ export default async function Planning({ searchParams }: { searchParams: Promise
               const list = byDay.get(d) ?? [];
               const isToday = d === today;
               return (
-                <div key={d} className={`flex min-h-[60vh] flex-col rounded-[14px] border p-1 ${isToday ? "border-lime/40 bg-lime/[0.03]" : "border-line bg-panel/60"}`}>
+                <DropDay key={d} date={d} className={`flex min-h-[60vh] flex-col rounded-[14px] border p-1 ${isToday ? "border-lime/40 bg-lime/[0.03]" : "border-line bg-panel/60"}`}>
                   <div className="flex items-baseline justify-between px-1.5 pb-2 pt-1">
                     <span className={`text-[12px] font-semibold uppercase tracking-wider ${isToday ? "text-lime" : "text-muted"}`}>{WD[i]}</span>
                     <span className={`text-[20px] font-bold tabular-nums ${isToday ? "text-lime" : "text-fog"}`}>{Number(d.slice(8))}</span>
                   </div>
                   <div className="grid gap-1">
-                    {list.map((w) => <BlockCard key={w.id} w={w} scores={scores.get(w.id) ?? 0} />)}
+                    {list.map((w) => <DragBlock key={w.id} id={w.id}><BlockCard w={w} scores={scores.get(w.id) ?? 0} /></DragBlock>)}
                   </div>
                   <Link href={addUrl(d)} className="mt-2 flex items-center justify-center rounded-xl border border-dashed border-line-2 py-2.5 text-[13px] font-semibold text-bleu-2 transition hover:border-bleu hover:bg-bleu/5">
                     + Bloc{list.length ? ` ${nextBlock(list)}` : ""}
                   </Link>
-                </div>
+                </DropDay>
               );
             })}
           </div>
@@ -133,20 +133,20 @@ export default async function Planning({ searchParams }: { searchParams: Promise
                 const inMonth = Number(d.slice(5, 7)) === am;
                 const isToday = d === today;
                 return (
-                  <div key={d} className={`group flex min-h-[132px] flex-col rounded-[14px] border p-2 ${isToday ? "border-lime/40" : "border-line"} ${inMonth ? "bg-panel/60" : "bg-transparent opacity-50"}`}>
+                  <DropDay key={d} date={d} className={`group flex min-h-[132px] flex-col rounded-[14px] border p-2 ${isToday ? "border-lime/40" : "border-line"} ${inMonth ? "bg-panel/60" : "bg-transparent opacity-50"}`}>
                     <div className="flex items-center justify-between px-1">
                       <Link href={url({ v: "week", d })} className={`text-[14px] font-bold tabular-nums ${isToday ? "text-lime" : "text-fog"} hover:underline`}>{Number(d.slice(8))}</Link>
                       <Link href={addUrl(d)} className="rounded-full px-1.5 text-[16px] leading-none text-dim opacity-60 transition hover:text-bleu-2 group-hover:opacity-100" aria-label="Ajouter un bloc">+</Link>
                     </div>
                     <div className="mt-1.5 grid gap-1">
                       {list.map((w) => (
-                        <Link key={w.id} href={`/admin/seances/${w.id}`} className={`truncate rounded-md px-2 py-1 text-[12px] ${w.published ? "bg-bleu/15 text-fog" : "border border-dashed border-line-2 text-muted"} hover:bg-bleu/25`}
+                        <DragBlock key={w.id} id={w.id}><Link href={`/admin/seances/${w.id}`} className={`block truncate rounded-md px-2 py-1 text-[12px] ${w.published ? "bg-bleu/15 text-fog" : "border border-dashed border-line-2 text-muted"} hover:bg-bleu/25`}
                           style={blockStyle(w.color, "chip")}>
                           {w.block ? <b className="text-lime">{w.block} </b> : null}{w.format ? formatLabel(w) : w.title}
-                        </Link>
+                        </Link></DragBlock>
                       ))}
                     </div>
-                  </div>
+                  </DropDay>
                 );
               })}
             </div>
