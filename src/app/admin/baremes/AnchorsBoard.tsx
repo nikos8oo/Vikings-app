@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
-import { createMovement, saveAnchors, setMovementActive, setMovementModality } from "@/app/actions/admin";
+import { createMovement, saveAnchors, setMovementActive, setMovementModality, setMovementPattern } from "@/app/actions/admin";
 import { FormMessage, Submit } from "@/components/forms";
-import { CATEGORY_LABEL, CATEGORY_ORDER, MODALITY_LABEL, MODALITY_ORDER, fmtTime } from "@/lib/format";
+import { CATEGORY_LABEL, CATEGORY_ORDER, MODALITY_LABEL, MODALITY_ORDER, PATTERN_LABEL, PATTERNS_OF, fmtTime } from "@/lib/format";
 import type { Anchors, Movement, Workout } from "@/lib/types";
 
 const LV = [["100", "Games"], ["90", "Élite"], ["75", "RX"], ["60", "Inter"], ["40", "Fitness"]] as const;
@@ -12,7 +12,7 @@ const UNIT: Record<string, string> = { load: "kg", reps: "reps", time: "m:ss", d
 type W = Pick<Workout, "id" | "title" | "score_type" | "better" | "anchors_m" | "anchors_f" | "counts_in_level" | "source">;
 type Row = {
   kind: "movement" | "workout";
-  id: string; name: string; group: string; mod?: string; label: string; unit: string;
+  id: string; name: string; group: string; mod?: string; pat?: string | null; label: string; unit: string;
   isTime: boolean; anchors_m: Anchors | null; anchors_f: Anchors | null;
   weight?: number; active?: boolean; usage?: number;
 };
@@ -25,7 +25,7 @@ export function AnchorsBoard({ movements, workouts, usage }: { movements: Moveme
       anchors_m: w.anchors_m, anchors_f: w.anchors_f,
     })),
     ...movements.map((m) => ({
-      kind: "movement" as const, id: m.id, name: m.name, group: m.category, mod: m.modality, label: m.test_label ?? "", unit: UNIT[m.metric],
+      kind: "movement" as const, id: m.id, name: m.name, group: m.category, mod: m.modality, pat: m.pattern, label: m.test_label ?? "", unit: UNIT[m.metric],
       isTime: m.metric === "time" && m.better === "lower", anchors_m: m.anchors_m, anchors_f: m.anchors_f,
       weight: Number(m.weight_in_level), active: m.active, usage: usage[m.id] ?? 0,
     })),
@@ -65,7 +65,7 @@ export function AnchorsBoard({ movements, workouts, usage }: { movements: Moveme
               <span className={`h-2 w-2 shrink-0 rounded-full ${r.anchors_m && r.anchors_f ? "bg-lime" : "bg-line"}`} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold text-fog">{r.name}</span>
-                <span className="block truncate text-xs text-dim">{r.group === "benchmark" ? r.label : `${MODALITY_LABEL[r.mod ?? ""] ?? ""} · ${CATEGORY_LABEL[r.group] ?? r.group} · ${r.label}`}</span>
+                <span className="block truncate text-xs text-dim">{r.group === "benchmark" ? r.label : `${MODALITY_LABEL[r.mod ?? ""] ?? ""}${r.pat ? ` ${PATTERN_LABEL[r.pat]}` : ""} · ${CATEGORY_LABEL[r.group] ?? r.group} · ${r.label}`}</span>
               </span>
               {r.anchors_m && <span className="hidden text-xs tabular-nums text-muted md:block">H : {show(r.anchors_m["100"], r.isTime)} / F : {show(r.anchors_f?.["100"], r.isTime)} {r.isTime ? "" : r.unit}</span>}
               {r.usage != null && <span className="text-xs text-dim">{r.usage} perf{r.usage > 1 ? "s" : ""}</span>}
@@ -129,6 +129,16 @@ function Editor({ row }: { row: Row }) {
               <button key={k} type="button" disabled={pending} onClick={() => start(() => setMovementModality(row.id, k))}
                 className={`rounded-full px-3 py-1 text-xs font-semibold transition ${row.mod === k ? "bg-fog text-canvas" : "text-muted hover:text-fog"}`}>
                 {MODALITY_LABEL[k]}
+              </button>
+            ))}
+          </div>
+        )}
+        {row.kind === "movement" && (PATTERNS_OF[row.mod ?? ""] ?? []).length > 0 && (
+          <div className="flex items-center gap-1 rounded-full bg-panel-3 p-0.5">
+            {[...PATTERNS_OF[row.mod ?? ""], null].map((k) => (
+              <button key={k ?? "autre"} type="button" disabled={pending} onClick={() => start(() => setMovementPattern(row.id, k))}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${(row.pat ?? null) === k ? "bg-fog text-canvas" : "text-muted hover:text-fog"}`}>
+                {k ? PATTERN_LABEL[k] : "Autre"}
               </button>
             ))}
           </div>

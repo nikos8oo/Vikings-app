@@ -75,6 +75,10 @@ export const MODALITY_HINT: Record<string, string> = {
 };
 export const MODALITY_ORDER = ["gym", "halt", "mono"] as const;
 
+/** Sous-familles (null = autre). */
+export const PATTERN_LABEL: Record<string, string> = { suspendu: "Suspendu", inverse: "Inversé", flexion: "Flexion", hinge: "Hinge", olympique: "Olympique" };
+export const PATTERNS_OF: Record<string, string[]> = { gym: ["suspendu", "inverse"], halt: ["flexion", "hinge", "olympique"], mono: [] };
+
 export const CATEGORY_ORDER = ["halterophilie", "force", "gymnastique", "engine", "haltere_kb", "renfo", "core", "strongman"];
 
 export function fmtDate(d: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" }) {

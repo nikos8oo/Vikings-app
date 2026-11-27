@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { db, must } from "@/lib/db";
-import { MODALITY_LABEL, MODALITY_ORDER, todayParis } from "@/lib/format";
+import { MODALITY_LABEL, MODALITY_ORDER, PATTERN_LABEL, PATTERNS_OF, todayParis } from "@/lib/format";
 import { getMovementMap } from "@/lib/data";
 import { blockStyle, colorHex } from "@/lib/colors";
 import { parseTrack, TRACK_KEYS, trackLabel } from "@/lib/tracks";
@@ -60,11 +60,12 @@ export default async function Planning({ searchParams }: { searchParams: Promise
   const total = workouts.length;
 
   // Répartition Gym / Haltéro / Mono : nombre de mouvements programmés sur la période
-  const mix = new Map<string, { n: number; mvs: Map<string, number> }>(MODALITY_ORDER.map((k) => [k, { n: 0, mvs: new Map() }]));
+  const mix = new Map<string, { n: number; mvs: Map<string, number>; pat: Map<string, number> }>(MODALITY_ORDER.map((k) => [k, { n: 0, mvs: new Map(), pat: new Map() }]));
   for (const w of workouts) for (const it of w.items ?? []) {
     const m = mmap.get(it.mv); const g = mix.get(m?.modality ?? "");
     if (!m || !g) continue;
     g.n++; g.mvs.set(m.name, (g.mvs.get(m.name) ?? 0) + 1);
+    if (m.pattern) g.pat.set(m.pattern, (g.pat.get(m.pattern) ?? 0) + 1);
   }
   const mixTotal = [...mix.values()].reduce((a, g) => a + g.n, 0);
   const MIX_COLOR: Record<string, string> = { gym: "var(--color-bleu)", halt: "var(--color-lime)", mono: "#7d8794" };
@@ -163,6 +164,9 @@ export default async function Planning({ searchParams }: { searchParams: Promise
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: MIX_COLOR[k] }} />
               {MODALITY_LABEL[k]} <b className="font-semibold tabular-nums text-fog">× {g.n}</b>
               {mixTotal > 0 && <span className="text-dim">{Math.round((g.n / mixTotal) * 100)} %</span>}
+              {g.n > 0 && PATTERNS_OF[k].length > 0 && (
+                <span className="text-dim">({PATTERNS_OF[k].map((pt) => `${PATTERN_LABEL[pt]} ${g.pat.get(pt) ?? 0}`).join(" · ")})</span>
+              )}
             </span>
           );
         })}

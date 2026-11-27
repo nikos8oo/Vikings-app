@@ -242,7 +242,14 @@ export async function setMovementActive(id: string, active: boolean) {
 export async function setMovementModality(id: string, modality: string) {
   await requireAdmin();
   if (!["gym", "halt", "mono"].includes(modality)) return;
-  await db().from("movements").update({ modality }).eq("id", id);
+  await db().from("movements").update({ modality, pattern: null }).eq("id", id);
+  revalidatePath("/", "layout");
+}
+
+export async function setMovementPattern(id: string, pattern: string | null) {
+  await requireAdmin();
+  if (pattern !== null && !["suspendu", "inverse", "flexion", "hinge", "olympique"].includes(pattern)) return;
+  await db().from("movements").update({ pattern }).eq("id", id);
   revalidatePath("/", "layout");
 }
 

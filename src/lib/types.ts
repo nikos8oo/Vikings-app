@@ -36,6 +36,7 @@ export type Movement = {
   name_en: string | null;
   category: string;
   modality: "gym" | "halt" | "mono";
+  pattern: string | null;
   family: string | null;
   equipment: string | null;
   metric: Metric;

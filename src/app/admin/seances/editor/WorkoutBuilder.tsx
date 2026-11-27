@@ -3,13 +3,13 @@
 import { useActionState, useMemo, useState } from "react";
 import { saveWorkout } from "@/app/actions/admin";
 import { FormMessage, Submit } from "@/components/forms";
-import { MODALITY_LABEL, MODALITY_ORDER, fmtTime, parseTime } from "@/lib/format";
+import { MODALITY_LABEL, MODALITY_ORDER, PATTERN_LABEL, PATTERNS_OF, fmtTime, parseTime } from "@/lib/format";
 import { computeVolume, describe, FORMATS, RESULT_BY, repsPerRound, TEMPLATES, templateOf, type ResultBy, type Template, type Format, type Item, type Rx, type SetRx } from "@/lib/prescription";
 import { SUBTRACKS } from "@/lib/tracks";
 import { BLOCK_COLORS, blockStyle } from "@/lib/colors";
 import type { Workout } from "@/lib/types";
 
-export type Mv = { id: string; name: string; category: string; metric: string; modality?: string };
+export type Mv = { id: string; name: string; category: string; metric: string; modality?: string; pattern?: string | null };
 
 const SOURCES = [["competition", "Compétition"], ["affiliates", "Affiliates"], ["qualif", "Qualif"], ["benchmark", "Benchmark"]] as const;
 const BLOCKS = ["", "A", "B", "C", "D"];
@@ -527,12 +527,13 @@ function MovementPicker({ movements, onPick }: { movements: Mv[]; onPick: (id: s
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [mod, setMod] = useState("");
+  const [pat, setPat] = useState("");
   const list = useMemo(() => {
     const s = q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
-    const pool = mod ? movements.filter((m) => m.modality === mod) : movements;
+    const pool = mod ? movements.filter((m) => m.modality === mod && (!pat || m.pattern === pat)) : movements;
     if (!s && !mod) return POPULAR.map((id) => movements.find((m) => m.id === id)).filter(Boolean) as Mv[];
     return pool.filter((m) => !s || (m.name + " " + m.id).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(s)).slice(0, s ? 12 : 60);
-  }, [q, mod, movements]);
+  }, [q, mod, pat, movements]);
   if (!open) return (
     <button type="button" onClick={() => setOpen(true)} className="ios-group ios-row w-full justify-center text-[15px] font-semibold text-bleu-2 hover:bg-white/[0.02]">+ Ajouter un mouvement</button>
   );
@@ -544,12 +545,22 @@ function MovementPicker({ movements, onPick }: { movements: Mv[]; onPick: (id: s
       </div>
       <div className="flex gap-1.5 px-4 pt-2.5">
         {["", ...MODALITY_ORDER].map((k) => (
-          <button key={k} type="button" onClick={() => setMod(k)}
+          <button key={k} type="button" onClick={() => { setMod(k); setPat(""); }}
             className={`rounded-full px-3 py-1 text-[12px] font-semibold transition ${mod === k ? "bg-fog text-canvas" : "bg-panel-3 text-muted hover:text-fog"}`}>
             {k ? MODALITY_LABEL[k] : "Tous"}
           </button>
         ))}
       </div>
+      {mod && PATTERNS_OF[mod].length > 0 && (
+        <div className="flex gap-1.5 px-4 pt-2">
+          {["", ...PATTERNS_OF[mod]].map((k) => (
+            <button key={k} type="button" onClick={() => setPat(k)}
+              className={`rounded-full border px-2.5 py-0.5 text-[12px] font-medium transition ${pat === k ? "border-fog text-fog" : "border-line text-muted hover:text-fog"}`}>
+              {k ? PATTERN_LABEL[k] : "Tout"}
+            </button>
+          ))}
+        </div>
+      )}
       {!q && !mod && <p className="px-4 pt-2 text-[12px] text-dim">Populaires</p>}
       <div className={mod && !q ? "max-h-[360px] overflow-y-auto no-scrollbar" : ""}>
       {list.map((m) => (
