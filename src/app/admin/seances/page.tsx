@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { db, must } from "@/lib/db";
-import { MODALITY_HINT, MODALITY_LABEL, MODALITY_ORDER, todayParis } from "@/lib/format";
+import { MODALITY_LABEL, MODALITY_ORDER, todayParis } from "@/lib/format";
 import { getMovementMap } from "@/lib/data";
 import { blockStyle, colorHex } from "@/lib/colors";
 import { parseTrack, TRACK_KEYS, trackLabel } from "@/lib/tracks";
@@ -154,36 +154,24 @@ export default async function Planning({ searchParams }: { searchParams: Promise
       )}
 
       {/* Répartition des mouvements */}
-      <section className="mt-6">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-[15px] font-semibold text-fog">Répartition {view === "week" ? "de la semaine" : "du mois"}</h2>
-          <span className="text-[13px] text-dim">{mixTotal} mouvement{mixTotal > 1 ? "s" : ""} programmé{mixTotal > 1 ? "s" : ""}</span>
-        </div>
+      <section className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-muted">
+        {MODALITY_ORDER.map((k) => {
+          const g = mix.get(k)!;
+          const top = [...g.mvs.entries()].sort((x, y) => y[1] - x[1]).slice(0, 3).map(([n, c]) => `${n}${c > 1 ? ` ×${c}` : ""}`).join(", ");
+          return (
+            <span key={k} className="flex items-center gap-1.5" title={top || undefined}>
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: MIX_COLOR[k] }} />
+              {MODALITY_LABEL[k]} <b className="font-semibold tabular-nums text-fog">× {g.n}</b>
+              {mixTotal > 0 && <span className="text-dim">{Math.round((g.n / mixTotal) * 100)} %</span>}
+            </span>
+          );
+        })}
         {mixTotal > 0 && (
-          <div className="mt-3 flex h-1.5 overflow-hidden rounded-full bg-panel-3">
+          <span className="flex h-1 w-28 overflow-hidden rounded-full bg-panel-3">
             {MODALITY_ORDER.map((k) => <span key={k} style={{ width: `${(mix.get(k)!.n / mixTotal) * 100}%`, background: MIX_COLOR[k] }} />)}
-          </div>
+          </span>
         )}
-        <div className="mt-3 grid gap-2 md:grid-cols-3">
-          {MODALITY_ORDER.map((k) => {
-            const g = mix.get(k)!;
-            const top = [...g.mvs.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
-            return (
-              <div key={k} className="rounded-[14px] border border-line bg-panel/60 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-[14px] font-semibold text-fog">
-                    <span className="h-2 w-2 rounded-full" style={{ background: MIX_COLOR[k] }} />{MODALITY_LABEL[k]}
-                  </span>
-                  <span className="text-[24px] font-bold tabular-nums text-fog">× {g.n}</span>
-                </div>
-                <p className="text-[12px] text-dim">{MODALITY_HINT[k]}{mixTotal ? ` · ${Math.round((g.n / mixTotal) * 100)} %` : ""}</p>
-                {top.length > 0 && (
-                  <p className="mt-2 truncate text-[12px] text-muted">{top.map(([n, c]) => `${n}${c > 1 ? ` ×${c}` : ""}`).join(" · ")}</p>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <span className="text-dim">· {mixTotal} mouvement{mixTotal > 1 ? "s" : ""} {view === "week" ? "cette semaine" : "ce mois"}</span>
       </section>
     </div>
   );
