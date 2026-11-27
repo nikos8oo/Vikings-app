@@ -10,6 +10,7 @@ import { formatLabel } from "@/lib/prescription";
 import type { Workout } from "@/lib/types";
 import { monthGrid } from "@/components/TrainingCalendar";
 import { DragBlock, DropDay, TrackSwitch } from "./PlannerControls";
+import { VideoRecorder } from "./VideoRecorder";
 import { BlockCard } from "./BlockCard";
 
 export const metadata: Metadata = { title: "Planning" };
@@ -81,6 +82,7 @@ export default async function Planning({ searchParams }: { searchParams: Promise
         </div>
         <div className="flex items-center gap-2">
           <Link href="/admin/seances/liste" className="text-[13px] font-medium text-muted hover:text-fog">Liste</Link>
+          <VideoRecorder track={track} date={anchor >= from && anchor <= to ? anchor : from} trackName={trackLabel(track, true)} />
           <Link href={addUrl(anchor >= from && anchor <= to ? anchor : from)} className="btn-lime py-2.5">+ Bloc</Link>
         </div>
       </div>
@@ -142,7 +144,7 @@ export default async function Planning({ searchParams }: { searchParams: Promise
                       {list.map((w) => (
                         <DragBlock key={w.id} id={w.id}><Link href={`/admin/seances/${w.id}`} className={`block truncate rounded-md px-2 py-1 text-[12px] ${w.published ? "bg-bleu/15 text-fog" : "border border-dashed border-line-2 text-muted"} hover:bg-bleu/25`}
                           style={blockStyle(w.color, "chip")}>
-                          {w.block ? <b className="text-lime">{w.block} </b> : null}{w.format ? formatLabel(w) : w.title}
+                          {w.block ? <b className="text-lime">{w.block} </b> : null}{w.video_url ? `▶ ${w.title}` : w.format ? formatLabel(w) : w.title}
                         </Link></DragBlock>
                       ))}
                     </div>

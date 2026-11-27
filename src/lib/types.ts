@@ -81,6 +81,7 @@ export type Workout = {
   variant?: string | null;
   subtrack?: string | null;
   color?: string | null;
+  video_url?: string | null;
 };
 
 export type Result = {

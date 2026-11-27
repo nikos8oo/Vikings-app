@@ -156,6 +156,9 @@ export async function saveWorkout(_: AdminState, f: FormData): Promise<AdminStat
 
 export async function deleteWorkout(id: string) {
   await requireStaff();
+  const { data: w } = await db().from("workouts").select("video_url").eq("id", id).maybeSingle();
+  const path = w?.video_url?.split("/storage/v1/object/public/videos/")[1];
+  if (path) await db().storage.from("videos").remove([decodeURIComponent(path)]);
   await db().from("workouts").delete().eq("id", id);
   revalidatePath("/", "layout");
   redirect("/admin/seances");

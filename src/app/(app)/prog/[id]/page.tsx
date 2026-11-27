@@ -64,7 +64,13 @@ export default async function WorkoutPage({ params }: P) {
       <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">
         <div className="grid content-start gap-6">
           <section className="rise rise-1 card p-5" style={blockStyle(w.color)}>
-            {rx ? (
+            {w.video_url ? (
+              <div className="grid gap-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">Vidéo du coach{w.block ? ` · Partie ${w.block}` : ""}</p>
+                <video src={w.video_url} controls playsInline preload="metadata" className="aspect-video w-full rounded-[14px] bg-black object-contain" />
+                {w.description && <p className="whitespace-pre-line text-[16px] leading-relaxed text-fog">{w.description}</p>}
+              </div>
+            ) : rx ? (
               <div className="grid gap-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{formatLabel(rx)}{w.block ? ` · Partie ${w.block}` : ""}</p>
                 <p className="whitespace-pre-line text-[16px] leading-relaxed text-fog">{w.description}</p>
@@ -107,14 +113,14 @@ export default async function WorkoutPage({ params }: P) {
             )}
           </section>
 
-          <section className="rise rise-2">
+          {!w.video_url && <section className="rise rise-2">
             <SectionTitle>Classement</SectionTitle>
             {board.length ? <Leaderboard rows={board.map((r) => ({ ...r, label: fmt(r) }))} meId={me.id} defaultSex={me.sex} /> : <Empty>Sois le premier à entrer ton score.</Empty>}
-          </section>
+          </section>}
         </div>
 
         <div className="grid content-start gap-6">
-          {w.score_type !== "none" || mine.length === 0 || rx ? (
+          {!w.video_url && (w.score_type !== "none" || mine.length === 0 || rx) ? (
             <section className="rise rise-1 card p-5">
               <SectionTitle>Mon score</SectionTitle>
               {rx ? <StructuredLog workoutId={w.id} rx={rx} sex={me.sex} maxes={maxes} names={names} rpr={w.reps_per_round} today={todayParis()} />

@@ -88,9 +88,15 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
                       <div className="border-b border-line bg-white/[0.02] px-4 py-2.5">
                         <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-fog">
                           {w.block ? <span className="text-lime">{w.block}. </span> : null}{w.title}
-                          {w.format && <span className="font-semibold text-muted"> · {formatLabel(w)}</span>}
+                          {w.video_url ? <span className="font-semibold text-muted"> · ▶ Vidéo</span> : w.format && <span className="font-semibold text-muted"> · {formatLabel(w)}</span>}
                         </p>
                       </div>
+                      {w.video_url ? (
+                        <div className="grid gap-3 p-4">
+                          <video src={w.video_url} controls playsInline preload="metadata" className="aspect-video w-full rounded-[12px] bg-black object-contain" />
+                          {w.description && <p className="whitespace-pre-line text-[14px] leading-relaxed text-muted">{w.description}</p>}
+                        </div>
+                      ) : <>
                       <Link href={`/prog/${w.id}`} className="block px-4 py-4">
                         <p className="whitespace-pre-line text-[15px] leading-relaxed text-fog">{w.description}</p>
                         {w.coach_notes && <p className="mt-3 line-clamp-2 text-[13px] text-muted">{w.coach_notes}</p>}
@@ -105,6 +111,7 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
                           <Link href={`/prog/${w.id}`} className="btn w-full bg-fog py-3 text-canvas hover:opacity-90">＋ Logger</Link>
                         )}
                       </div>
+                      </>}
                     </article>
                   );
                 })}

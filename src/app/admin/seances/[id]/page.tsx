@@ -22,6 +22,22 @@ export default async function EditSeance({ params, searchParams }: { params: Pro
   const [movements, board] = await Promise.all([getMovements(), leaderboard(w)]);
   const mvs = movements.map((m) => ({ id: m.id, name: m.name, category: m.category, metric: m.metric, modality: m.modality, pattern: m.pattern, video_url: m.video_url }));
   const back = `/admin/seances?p=${encodeURIComponent(trackKey(w))}&d=${w.workout_date}`;
+  if (w.video_url) return (
+    <div className="mx-auto grid max-w-4xl gap-6">
+      <div>
+        <Link href={back} className="text-[13px] font-medium text-bleu-2">‹ Planning</Link>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <h1 className="text-[32px] font-bold tracking-tight text-fog">{w.title}</h1>
+          <Link href={`/prog/${w.id}`} className="text-[13px] font-medium text-bleu-2">Vue athlète</Link>
+        </div>
+        <p className="mt-1 text-[13px] text-muted">Vidéo · {w.workout_date.split("-").reverse().join("/")}{w.block ? ` · Bloc ${w.block}` : ""}</p>
+      </div>
+      <video src={w.video_url} controls playsInline className="aspect-video w-full rounded-[16px] bg-black object-contain" />
+      {w.description && <p className="whitespace-pre-line text-[15px] text-fog">{w.description}</p>}
+      <p className="text-[12px] text-dim">Pour la déplacer, glisse-la dans le planning. Pour la remplacer, supprime-la et réenregistre.</p>
+      <DeleteWorkoutButton id={w.id} />
+    </div>
+  );
   if (w.format) return (
     <div className="mx-auto grid max-w-5xl gap-6">
       <div>
