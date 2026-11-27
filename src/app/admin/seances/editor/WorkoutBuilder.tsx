@@ -552,7 +552,8 @@ function MovementPicker({ movements, onPick }: { movements: Mv[]; onPick: (id: s
   const [pat, setPat] = useState("");
   const list = useMemo(() => {
     const s = q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
-    const pool = mod ? movements.filter((m) => m.modality === mod && (!pat || m.pattern === pat)) : movements;
+    const pool = mod === "mob" ? movements.filter((m) => m.category === "mobilite")
+      : mod ? movements.filter((m) => m.modality === mod && m.category !== "mobilite" && (!pat || m.pattern === pat)) : movements;
     if (!s && !mod) return POPULAR.map((id) => movements.find((m) => m.id === id)).filter(Boolean) as Mv[];
     return pool.filter((m) => !s || (m.name + " " + m.id).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(s)).slice(0, s ? 12 : 60);
   }, [q, mod, pat, movements]);
@@ -566,14 +567,14 @@ function MovementPicker({ movements, onPick }: { movements: Mv[]; onPick: (id: s
         <button type="button" onClick={() => { setOpen(false); setQ(""); setMod(""); }} className="text-[14px] text-bleu-2">Annuler</button>
       </div>
       <div className="flex gap-1.5 px-4 pt-2.5">
-        {["", ...MODALITY_ORDER].map((k) => (
+        {["", ...MODALITY_ORDER, "mob"].map((k) => (
           <button key={k} type="button" onClick={() => { setMod(k); setPat(""); }}
             className={`rounded-full px-3 py-1 text-[12px] font-semibold transition ${mod === k ? "bg-fog text-canvas" : "bg-panel-3 text-muted hover:text-fog"}`}>
-            {k ? MODALITY_LABEL[k] : "Tous"}
+            {k === "mob" ? "Mobilité" : k ? MODALITY_LABEL[k] : "Tous"}
           </button>
         ))}
       </div>
-      {mod && PATTERNS_OF[mod].length > 0 && (
+      {mod && (PATTERNS_OF[mod] ?? []).length > 0 && (
         <div className="flex gap-1.5 px-4 pt-2">
           {["", ...PATTERNS_OF[mod]].map((k) => (
             <button key={k} type="button" onClick={() => setPat(k)}
@@ -588,7 +589,7 @@ function MovementPicker({ movements, onPick }: { movements: Mv[]; onPick: (id: s
       {list.map((m) => (
         <button key={m.id} type="button" onClick={() => { onPick(m.id); setOpen(false); setQ(""); }} className="ios-row w-full text-left hover:bg-white/[0.03]">
           <span className="flex-1 text-[15px] text-fog">{m.name}</span>
-          <span className="text-[12px] text-dim">{MODALITY_LABEL[m.modality ?? ""] ?? ""}</span>
+          <span className="text-[12px] text-dim">{m.category === "mobilite" ? "Mobilité" : MODALITY_LABEL[m.modality ?? ""] ?? ""}</span>
         </button>
       ))}
       </div>
