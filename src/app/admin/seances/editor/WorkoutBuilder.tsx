@@ -9,6 +9,8 @@ import { SUBTRACKS } from "@/lib/tracks";
 import { BLOCK_COLORS, blockStyle } from "@/lib/colors";
 import type { Workout } from "@/lib/types";
 
+import { WodImport } from "./WodImport";
+
 export type Mv = { id: string; name: string; category: string; metric: string; modality?: string; pattern?: string | null; video_url?: string | null };
 
 const SOURCES = [["competition", "Compétition"], ["affiliates", "Affiliates"], ["qualif", "Qualif"], ["benchmark", "Benchmark"]] as const;
@@ -43,6 +45,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
   const nameOf = (id: string) => mmap.get(id)?.name ?? id;
 
   const [title, setTitle] = useState<string>(w?.title ?? "");
+  const [coachNotes, setCoachNotes] = useState<string>(w?.coach_notes ?? "");
   const [source, setSource] = useState<string>(w?.source === "vikings" ? "competition" : w?.source ?? defaults?.source ?? "competition");
   const [subtrack, setSubtrack] = useState<string>(w?.subtrack ?? defaults?.subtrack ?? "crossfit");
   const [color, setColor] = useState<string>(w?.color ?? "");
@@ -113,6 +116,17 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
     }));
   };
 
+  /** Bloc construit depuis un texte collé : tout reste modifiable ensuite. */
+  const applyImport = ({ rx: parsed, title: t, notes }: { rx: Rx; title: string | null; notes: string[] }) => {
+    const items = parsed.items.map((it) => ({ ...it, video: it.video ?? movements.find((m) => m.id === it.mv)?.video_url ?? null }));
+    const tp = templateOf(parsed);
+    setGroup(tp.group); if (tp.by) setBy(tp.by);
+    setWk(0);
+    setWeeks([{ ...parsed, items }]);
+    if (t && !title.trim()) setTitle(t);
+    if (notes.length) setCoachNotes((c) => [c.trim(), notes.join("\n")].filter(Boolean).join("\n"));
+  };
+
   const preview = useMemo(() => (rx.items.length ? describe(rx, nameOf) : ""), [rx]); // eslint-disable-line react-hooks/exhaustive-deps
   const volume = useMemo(() => {
     if (!rx.items.length || ["tabata", "death_by"].includes(rx.format)) return [];
@@ -132,6 +146,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
       {returnTo && <input type="hidden" name="return" value={returnTo} />}
 
       <div className="grid gap-7">
+        {!w && <WodImport movements={movements} onApply={applyImport} />}
         {/* Séance */}
         <section>
           <h2 className="ios-head">Séance</h2>
@@ -266,7 +281,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
         <section>
           <h2 className="ios-head">Consignes du coach</h2>
           <div className="ios-group">
-            <textarea name="coach_notes" rows={3} defaultValue={w?.coach_notes ?? ""} placeholder="Stimulus, scaling, points techniques…" className="block w-full resize-y bg-transparent px-4 py-3 text-[15px] text-fog outline-none placeholder:text-dim" />
+            <textarea name="coach_notes" rows={3} value={coachNotes} onChange={(e) => setCoachNotes(e.target.value)} placeholder="Stimulus, scaling, points techniques…" className="block w-full resize-y bg-transparent px-4 py-3 text-[15px] text-fog outline-none placeholder:text-dim" />
           </div>
         </section>
 
