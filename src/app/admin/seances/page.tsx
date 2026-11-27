@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { db, must } from "@/lib/db";
-import { todayParis } from "@/lib/format";
+import { MODALITY_HINT, MODALITY_LABEL, MODALITY_ORDER, todayParis } from "@/lib/format";
+import { getMovementMap } from "@/lib/data";
 import { blockStyle, colorHex } from "@/lib/colors";
 import { parseTrack, TRACK_KEYS, trackLabel } from "@/lib/tracks";
 import { formatLabel } from "@/lib/prescription";
@@ -38,10 +39,11 @@ export default async function Planning({ searchParams }: { searchParams: Promise
 
   const days = view === "week" ? Array.from({ length: 7 }, (_, i) => addDays(weekStart(anchor), i)) : monthGrid(anchor).grid.map((g) => g.date);
   const from = days[0], to = days[days.length - 1];
-  const [workouts, counts] = await Promise.all([
+  const [workouts, counts, mmap] = await Promise.all([
     (subtrack ? db().from("workouts").select("*").eq("source", source).eq("subtrack", subtrack) : db().from("workouts").select("*").eq("source", source)).gte("workout_date", from).lte("workout_date", to)
       .order("block", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }).then((r) => must(r) as Workout[]),
     db().from("results").select("workout_id").not("workout_id", "is", null).gte("performed_on", addDays(from, -1)).then((r) => (r.data ?? []) as { workout_id: string }[]),
+    getMovementMap(),
   ]);
   const scores = new Map<string, number>();
   for (const c of counts) scores.set(c.workout_id, (scores.get(c.workout_id) ?? 0) + 1);
@@ -56,6 +58,16 @@ export default async function Planning({ searchParams }: { searchParams: Promise
   const [ay, am] = anchor.split("-").map(Number);
   const title = view === "week" ? `Semaine du ${label(from)} au ${label(to)}` : `${["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"][am - 1]} ${ay}`;
   const total = workouts.length;
+
+  // Répartition Gym / Haltéro / Mono : nombre de mouvements programmés sur la période
+  const mix = new Map<string, { n: number; mvs: Map<string, number> }>(MODALITY_ORDER.map((k) => [k, { n: 0, mvs: new Map() }]));
+  for (const w of workouts) for (const it of w.items ?? []) {
+    const m = mmap.get(it.mv); const g = mix.get(m?.modality ?? "");
+    if (!m || !g) continue;
+    g.n++; g.mvs.set(m.name, (g.mvs.get(m.name) ?? 0) + 1);
+  }
+  const mixTotal = [...mix.values()].reduce((a, g) => a + g.n, 0);
+  const MIX_COLOR: Record<string, string> = { gym: "var(--color-bleu)", halt: "var(--color-lime)", mono: "#7d8794" };
 
   return (
     <div className="w-full">
@@ -140,6 +152,39 @@ export default async function Planning({ searchParams }: { searchParams: Promise
           </div>
         </div>
       )}
+
+      {/* Répartition des mouvements */}
+      <section className="mt-6">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[15px] font-semibold text-fog">Répartition {view === "week" ? "de la semaine" : "du mois"}</h2>
+          <span className="text-[13px] text-dim">{mixTotal} mouvement{mixTotal > 1 ? "s" : ""} programmé{mixTotal > 1 ? "s" : ""}</span>
+        </div>
+        {mixTotal > 0 && (
+          <div className="mt-3 flex h-1.5 overflow-hidden rounded-full bg-panel-3">
+            {MODALITY_ORDER.map((k) => <span key={k} style={{ width: `${(mix.get(k)!.n / mixTotal) * 100}%`, background: MIX_COLOR[k] }} />)}
+          </div>
+        )}
+        <div className="mt-3 grid gap-2 md:grid-cols-3">
+          {MODALITY_ORDER.map((k) => {
+            const g = mix.get(k)!;
+            const top = [...g.mvs.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+            return (
+              <div key={k} className="rounded-[14px] border border-line bg-panel/60 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-[14px] font-semibold text-fog">
+                    <span className="h-2 w-2 rounded-full" style={{ background: MIX_COLOR[k] }} />{MODALITY_LABEL[k]}
+                  </span>
+                  <span className="text-[24px] font-bold tabular-nums text-fog">× {g.n}</span>
+                </div>
+                <p className="text-[12px] text-dim">{MODALITY_HINT[k]}{mixTotal ? ` · ${Math.round((g.n / mixTotal) * 100)} %` : ""}</p>
+                {top.length > 0 && (
+                  <p className="mt-2 truncate text-[12px] text-muted">{top.map(([n, c]) => `${n}${c > 1 ? ` ×${c}` : ""}`).join(" · ")}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }
