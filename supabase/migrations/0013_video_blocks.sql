@@ -1,0 +1,1 @@
+-- voir migration appliquée : workouts.video_url + bucket videos (50 Mo, public en lecture) + politiques va_ok
