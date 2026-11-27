@@ -156,7 +156,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
         </section>
 
         {weeks.length > 1 && (
-          <div id="semaines" className="scroll-mt-32 sticky top-[96px] z-20 -mx-1 rounded-[14px] bg-canvas/85 px-1 py-2 backdrop-blur-xl">
+          <div id="semaines" className="scroll-mt-32 sticky top-[120px] z-20 lg:top-3 -mx-1 rounded-[14px] bg-canvas/85 px-1 py-2 backdrop-blur-xl">
             <div className="seg w-full">
               {weeks.map((_, k) => (
                 <button key={k} type="button" aria-pressed={wk === k} onClick={() => setWk(k)} className="seg-btn py-2">
@@ -287,7 +287,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
       </div>
 
       {/* Aperçu */}
-      <aside className="grid gap-3 lg:sticky lg:top-[104px] lg:max-h-[calc(100dvh-120px)] lg:overflow-y-auto no-scrollbar">
+      <aside className="grid gap-3 lg:sticky lg:top-8 lg:max-h-[calc(100dvh-48px)] lg:overflow-y-auto no-scrollbar">
         <h2 className="ios-head">Aperçu athlète</h2>
         <div className="ios-group relative p-5" style={blockStyle(color)}>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{FORMATS[rx.format].label}{block ? ` · Partie ${block}` : ""}{weeks.length > 1 ? ` · S${wk + 1} (${short(addDays(date, 7 * wk))})` : ""}</p>

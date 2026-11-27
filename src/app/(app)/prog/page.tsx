@@ -71,12 +71,12 @@ export default async function Prog({ searchParams }: { searchParams: Promise<{ s
       {upcoming.length > 0 && (
         <section className="mt-6">
           <h2 className="kicker mb-3">À venir</h2>
-          <div className="grid gap-3 md:grid-cols-2">{upcoming.map(card)}</div>
+          <div className="grid gap-3">{upcoming.map(card)}</div>
         </section>
       )}
       <section className="mt-6">
         {upcoming.length > 0 && <h2 className="kicker mb-3">Passées</h2>}
-        {past.length ? <div className="grid gap-3 md:grid-cols-2">{past.map(card)}</div> : <Empty>Aucune séance pour ce filtre.</Empty>}
+        {past.length ? <div className="grid gap-3">{past.map(card)}</div> : <Empty>Aucune séance pour ce filtre.</Empty>}
       </section>
     </div>
   );

@@ -60,7 +60,7 @@ export default async function WorkoutPage({ params }: P) {
         <h1 className="display mt-2 text-5xl text-fog">{w.title}</h1>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">
+      <div className="grid gap-6">
         <div className="grid content-start gap-6">
           <section className="rise rise-1 card p-5" style={blockStyle(w.color)}>
             {rx ? (

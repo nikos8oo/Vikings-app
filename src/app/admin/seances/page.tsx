@@ -58,7 +58,7 @@ export default async function Planning({ searchParams }: { searchParams: Promise
   const total = workouts.length;
 
   return (
-    <div className="relative left-1/2 w-[calc(100vw-1rem)] max-w-[1900px] -translate-x-1/2 md:w-[calc(100vw-1.5rem)]">
+    <div className="w-full">
       {/* En-tête */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

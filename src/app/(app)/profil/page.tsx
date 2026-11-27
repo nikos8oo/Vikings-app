@@ -1,3 +1,4 @@
+import { InstallApp } from "@/components/InstallApp";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import type { Metadata } from "next";
 import { logout } from "@/app/actions/auth";
@@ -25,6 +26,7 @@ export default async function Profil() {
         <h2 className="display mb-4 text-xl">Mes infos</h2>
         <ProfileForm me={me} boxes={boxes.map((b) => ({ id: b.id, label: b.city ? `${b.name} · ${b.city}` : b.name }))} />
       </section>
+      <InstallApp />
       <section className="rise rise-2 card flex items-center justify-between gap-4 p-5">
         <div><h2 className="display text-xl">Apparence</h2><p className="mt-1 text-sm text-muted">Version sombre ou version blanche.</p></div>
         <ThemeToggle />

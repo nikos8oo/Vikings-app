@@ -34,7 +34,7 @@ export function TrainingCalendar({ selected, today, marks, basePath = "/accueil"
   const doneDays = grid.filter((d) => d.inMonth && marks[d.date]?.done).length;
 
   return (
-    <div className="card p-4 sm:p-5">
+    <div className="card p-4">
       <div className="flex items-center justify-between">
         <Link href={href(prev)} scroll={false} className="round-btn" aria-label="Mois précédent">‹</Link>
         <div className="text-center">
@@ -47,7 +47,7 @@ export function TrainingCalendar({ selected, today, marks, basePath = "/accueil"
       <div className="mt-4 grid grid-cols-7 text-center text-[11px] font-semibold text-dim">
         {WD.map((d, i) => <span key={i}>{d}</span>)}
       </div>
-      <div className="mt-1 grid grid-cols-7 sm:gap-y-1">
+      <div className="mt-1 grid grid-cols-7">
         {grid.map((d) => {
           const mk = marks[d.date];
           const sel = d.date === selected;
@@ -55,8 +55,8 @@ export function TrainingCalendar({ selected, today, marks, basePath = "/accueil"
           const allDone = mk && mk.count > 0 && mk.done >= mk.count;
           return (
             <Link key={d.date} href={href(d.date)} scroll={false} aria-current={sel ? "date" : undefined}
-              className="flex flex-col items-center gap-0.5 py-0.5 sm:gap-1 sm:py-1">
-              <span className={`flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-[15px] tabular-nums transition
+              className="flex flex-col items-center gap-0.5 py-0.5">
+              <span className={`flex h-8 w-8 items-center justify-center rounded-full text-[15px] tabular-nums transition
                 ${sel ? "bg-lime font-bold text-ink" : isToday ? "font-bold text-lime ring-1 ring-lime/50" : d.inMonth ? "text-fog hover:bg-white/5" : "text-dim/60"}`}>
                 {d.day}
               </span>
