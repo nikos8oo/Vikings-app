@@ -45,6 +45,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
   const nameOf = (id: string) => mmap.get(id)?.name ?? id;
 
   const [title, setTitle] = useState<string>(w?.title ?? "");
+  const [titleMenu, setTitleMenu] = useState(false);
   const [coachNotes, setCoachNotes] = useState<string>(w?.coach_notes ?? "");
   const [source, setSource] = useState<string>(w?.source === "vikings" ? "competition" : w?.source ?? defaults?.source ?? "competition");
   const [subtrack, setSubtrack] = useState<string>(w?.subtrack ?? defaults?.subtrack ?? "crossfit");
@@ -152,15 +153,29 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
         {/* Séance */}
         <section>
           <h2 className="ios-head">Séance</h2>
-          <div className="ios-group">
-            <label className="ios-row"><span className="ios-label">Titre</span>
-              <input name="title" value={title} onChange={(e) => setTitle(e.target.value)} required list="va-titles" placeholder="Choisis ou écris un titre" className="ios-input" /></label>
-            <datalist id="va-titles">{TITLE_PRESETS.map((t) => <option key={t} value={t} />)}</datalist>
-            <div className="flex flex-wrap gap-1.5 border-b border-line px-4 py-2.5">
-              {TITLE_PRESETS.map((t) => (
-                <button key={t} type="button" onClick={() => setTitle(t)}
-                  className={`rounded-full px-2.5 py-1 text-[12px] font-medium transition ${title === t ? "bg-fog text-canvas" : "bg-panel-3 text-muted hover:text-fog"}`}>{t}</button>
-              ))}
+          <div className="ios-group !overflow-visible">
+            <div className="ios-row relative">
+              <span className="ios-label">Titre</span>
+              <input name="title" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Choisis ou écris un titre" className="ios-input" />
+              <button type="button" onClick={() => setTitleMenu(!titleMenu)} aria-label="Titres pré-écrits"
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-panel-3 hover:text-fog ${titleMenu ? "rotate-180 bg-panel-3 text-fog" : ""}`}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+              </button>
+              {titleMenu && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setTitleMenu(false)} />
+                  <ul className="absolute right-3 top-full z-40 mt-1 max-h-80 w-64 overflow-y-auto rounded-[12px] border border-line bg-canvas py-1 shadow-xl">
+                    {TITLE_PRESETS.map((t) => (
+                      <li key={t}>
+                        <button type="button" onClick={() => { setTitle(t); setTitleMenu(false); }}
+                          className={`flex w-full items-center justify-between px-3.5 py-2 text-left text-[14px] hover:bg-panel-3 ${title === t ? "font-semibold text-fog" : "text-muted"}`}>
+                          {t}{title === t && <span className="text-bleu-2">✓</span>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </div>
             <label className="ios-row"><span className="ios-label">Date</span>
               <input name="workout_date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="ios-input [color-scheme:dark]" /></label>
