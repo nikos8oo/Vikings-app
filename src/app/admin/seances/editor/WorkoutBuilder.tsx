@@ -4,12 +4,12 @@ import { useActionState, useMemo, useState } from "react";
 import { saveWorkout } from "@/app/actions/admin";
 import { FormMessage, Submit } from "@/components/forms";
 import { MODALITY_LABEL, MODALITY_ORDER, PATTERN_LABEL, PATTERNS_OF, fmtTime, parseTime } from "@/lib/format";
-import { computeVolume, describe, FORMATS, RESULT_BY, repsPerRound, TEMPLATES, templateOf, type ResultBy, type Template, type Format, type Item, type Rx, type SetRx } from "@/lib/prescription";
+import { computeVolume, describe, FORMATS, RESULT_BY, repsPerRound, TEMPLATES, templateOf, type ResultBy, type Template, type Format, type Item, type Rx, type SetRx, youtubeId } from "@/lib/prescription";
 import { SUBTRACKS } from "@/lib/tracks";
 import { BLOCK_COLORS, blockStyle } from "@/lib/colors";
 import type { Workout } from "@/lib/types";
 
-export type Mv = { id: string; name: string; category: string; metric: string; modality?: string; pattern?: string | null };
+export type Mv = { id: string; name: string; category: string; metric: string; modality?: string; pattern?: string | null; video_url?: string | null };
 
 const SOURCES = [["competition", "Compétition"], ["affiliates", "Affiliates"], ["qualif", "Qualif"], ["benchmark", "Benchmark"]] as const;
 const BLOCKS = ["", "A", "B", "C", "D"];
@@ -101,7 +101,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
   const addMovement = (id: string) => {
     setRx((r) => ({
       ...r,
-      items: [...r.items, isSets ? { mv: id, sets: r.format === "max" ? [{ reps: 1 }] : [{ reps: 5 }, { reps: 5 }, { reps: 5 }] } : { mv: id }],
+      items: [...r.items, { ...(isSets ? { mv: id, sets: r.format === "max" ? [{ reps: 1 }] : [{ reps: 5 }, { reps: 5 }, { reps: 5 }] } : { mv: id }), video: movements.find((m) => m.id === id)?.video_url ?? null }],
     }));
   };
 
@@ -499,6 +499,13 @@ function ItemCard({ it, index, rx, mv, setItem, onRemove, onMove }: {
           )}
         </>
       )}
+      <div className="ios-row">
+        <span className="ios-label text-muted">Vidéo</span>
+        <input value={it.video ?? ""} placeholder="Lien YouTube (optionnel)" inputMode="url" onChange={(e) => up({ video: e.target.value.trim() || null })} className="ios-input" />
+        {it.video && (youtubeId(it.video)
+          ? <a href={it.video} target="_blank" rel="noreferrer" className="shrink-0 rounded-full bg-panel-3 px-2.5 py-1 text-[12px] font-semibold text-bleu-2 hover:text-fog">▶ Voir</a>
+          : <span className="shrink-0 text-[12px] text-danger">Lien YouTube invalide</span>)}
+      </div>
       <label className="ios-row"><span className="ios-label text-muted">Note</span>
         <input value={it.note ?? ""} placeholder="ex. unbroken, tempo 3-1-1…" onChange={(e) => up({ note: e.target.value || null })} className="ios-input" /></label>
     </div>

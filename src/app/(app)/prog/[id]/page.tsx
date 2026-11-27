@@ -1,3 +1,4 @@
+import { VideoDemos } from "@/components/VideoDemos";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -94,6 +95,10 @@ export default async function WorkoutPage({ params }: P) {
                 <Link key={mid} href={`/perfs/${mid}`} className="chip hover:border-bleu">{mmap.get(mid)!.name}</Link>
               ))}
             </div>
+            {rx && (
+              <VideoDemos videos={[...new Map(rx.items.map((it) => [it.mv, it.video ?? mmap.get(it.mv)?.video_url ?? null] as const)).entries()]
+                .filter(([, url]) => url).map(([mv, url]) => ({ name: mmap.get(mv)?.name ?? mv, url: url! }))} />
+            )}
             {w.coach_notes && (
               <div className="mt-5 rounded-xl border-l-2 border-bleu bg-bleu/5 p-4">
                 <p className="kicker mb-1 text-bleu-2">Notes du coach</p>

@@ -14,7 +14,7 @@ export default async function Nouvelle({ searchParams }: { searchParams: Promise
   const { source, subtrack } = track ? parseTrack(track) : { source: undefined, subtrack: null };
   const block = /^[A-D]$/.test(sp.block ?? "") ? sp.block : undefined;
   const back = `/admin/seances${track ? `?p=${encodeURIComponent(track)}${date ? `&d=${date}` : ""}` : ""}`;
-  const movements = (await getMovements()).map((m) => ({ id: m.id, name: m.name, category: m.category, metric: m.metric, modality: m.modality, pattern: m.pattern }));
+  const movements = (await getMovements()).map((m) => ({ id: m.id, name: m.name, category: m.category, metric: m.metric, modality: m.modality, pattern: m.pattern, video_url: m.video_url }));
   return (
     <div className="mx-auto grid max-w-5xl gap-6">
       <div>

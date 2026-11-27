@@ -1,3 +1,4 @@
+import { VideoDemos } from "@/components/VideoDemos";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -61,6 +62,7 @@ export default async function MovementPage({ params }: P) {
         <Link href="/perfs" className="text-xs font-semibold text-muted">← {MODALITY_LABEL[m.modality] ?? "Perfs"}</Link>
         <h1 className="display mt-2 text-4xl text-fog">{m.name}</h1>
         <p className="mt-1 text-sm text-muted">{m.test_label}{m.equipment ? ` · ${m.equipment}` : ""}</p>
+        {m.video_url && <div className="max-w-md"><VideoDemos videos={[{ name: m.name, url: m.video_url }]} title="Démo" /></div>}
       </div>
 
       <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">

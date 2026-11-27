@@ -20,7 +20,7 @@ export default async function EditSeance({ params, searchParams }: { params: Pro
   if (!data) notFound();
   const w = data as Workout;
   const [movements, board] = await Promise.all([getMovements(), leaderboard(w)]);
-  const mvs = movements.map((m) => ({ id: m.id, name: m.name, category: m.category, metric: m.metric, modality: m.modality, pattern: m.pattern }));
+  const mvs = movements.map((m) => ({ id: m.id, name: m.name, category: m.category, metric: m.metric, modality: m.modality, pattern: m.pattern, video_url: m.video_url }));
   const back = `/admin/seances?p=${encodeURIComponent(trackKey(w))}&d=${w.workout_date}`;
   if (w.format) return (
     <div className="mx-auto grid max-w-5xl gap-6">

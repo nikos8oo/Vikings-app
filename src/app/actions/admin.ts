@@ -52,7 +52,10 @@ export async function saveWorkout(_: AdminState, f: FormData): Promise<AdminStat
     if (typeof clean === "string") return { error: clean };
     rx = clean;
     const ids = [...new Set(rx.items.map((i) => i.mv))];
-    const { data: known } = await db().from("movements").select("id,name").in("id", ids);
+    const { data: known } = await db().from("movements").select("id,name,video_url").in("id", ids);
+    // Une vidéo ajoutée sur un mouvement devient sa vidéo par défaut dans la bibliothèque
+    const learn = rx.items.filter((i) => i.video && !(known ?? []).find((m) => m.id === i.mv)?.video_url);
+    await Promise.all([...new Map(learn.map((i) => [i.mv, i.video])).entries()].map(([mv, video]) => db().from("movements").update({ video_url: video }).eq("id", mv)));
     const names = new Map((known ?? []).map((m) => [m.id as string, m.name as string]));
     if (names.size !== ids.length) return { error: "Un mouvement est inconnu." };
     rx.items = rx.items.map((i) => ({ ...i }));

@@ -29,8 +29,16 @@ export type Item = {
   height_cm?: number | null;  // box jump, wall ball…
   sets?: SetRx[];             // formats max / séries
   note?: string | null;
+  video?: string | null;      // lien YouTube de démo
   phase?: "buy_in" | "buy_out" | null; // fait une seule fois, avant / après les tours
 };
+
+/** Identifiant d'une vidéo YouTube (youtube.com/watch, youtu.be, shorts, embed), sinon null. */
+export function youtubeId(url?: string | null): string | null {
+  if (!url || typeof url !== "string") return null;
+  const m = url.trim().match(/^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
 
 export type Rx = {
   format: Format;
@@ -468,6 +476,7 @@ export function sanitizeRx(raw: unknown): Rx | string {
     kg_m: pos(i.kg_m, 500), kg_f: pos(i.kg_f, 500), pct: pos(i.pct, 150), height_cm: pos(i.height_cm, 300),
     sets: Array.isArray(i.sets) ? i.sets.slice(0, 30).map((s) => ({ reps: pos(s.reps, 500) ?? 1, pct: pos(s.pct, 150), kg_m: pos(s.kg_m, 500), kg_f: pos(s.kg_f, 500) })) : undefined,
     note: typeof i.note === "string" && i.note.trim() ? i.note.trim().slice(0, 140) : null,
+    video: youtubeId(i.video) ? String(i.video).trim().slice(0, 300) : null,
     phase: i.phase === "buy_in" || i.phase === "buy_out" ? i.phase : null,
   }));
   if (!items.length) return "Ajoute au moins un mouvement.";
