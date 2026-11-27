@@ -23,8 +23,17 @@ export function Nav({ staff }: { staff: boolean }) {
   const active = (h: string) => path === h || path.startsWith(h + "/");
   return (
     <>
-      {/* Barre d'onglets en verre (toujours, l'app athlète est mobile) */}
-      <nav className="glass pb-safe fixed bottom-3 left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-[456px] -translate-x-1/2 rounded-[22px] px-2 pt-2">
+      {/* Desktop */}
+      <nav className="hidden items-center gap-1 md:flex">
+        {items.map((i) => (
+          <Link key={i.href} href={i.href}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${active(i.href) ? "bg-white/10 text-fog" : "text-muted hover:text-fog"}`}>
+            {i.label}
+          </Link>
+        ))}
+      </nav>
+      {/* Mobile : barre d'onglets en verre */}
+      <nav className="glass pb-safe fixed inset-x-3 bottom-3 z-40 rounded-[22px] px-2 pt-2 md:hidden">
         <ul className="flex justify-around">
           {items.map((i) => {
             const on = active(i.href);

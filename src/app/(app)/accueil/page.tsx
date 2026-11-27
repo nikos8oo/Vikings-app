@@ -59,8 +59,8 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
       </div>
 
       {/* Calendrier + séances du jour */}
-      <div className="grid gap-5">
-        <div className="rise rise-1 grid gap-3">
+      <div className="grid gap-5 md:grid-cols-[340px_minmax(0,1fr)] md:items-start">
+        <div className="rise rise-1 grid gap-3 md:sticky md:top-6">
           <TrainingCalendar selected={selected} today={today} marks={marks} />
           <div className="card px-4 py-3">
             <p className="text-[12px] font-semibold text-muted">Mes programmes</p>
@@ -121,8 +121,8 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
       </div>
 
       {/* Niveau */}
-      <section className="rise rise-1 card overflow-hidden p-5">
-        <div className="grid items-center gap-6">
+      <section className="rise rise-1 card overflow-hidden p-5 md:p-7">
+        <div className="grid items-center gap-6 md:grid-cols-[auto_1fr]">
           <div className="mx-auto"><LevelRing value={level.global} tier={tier?.label ?? "À évaluer"} provisional={level.provisional} /></div>
           <div className="grid gap-5">
             {level.global == null ? (
@@ -152,7 +152,7 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
         </div>
       </section>
 
-      <div className="grid gap-6">
+      <div className="grid gap-6 md:grid-cols-2">
         {/* Radar */}
         <section className="rise rise-2 card p-5">
           <SectionTitle>Profil athlète</SectionTitle>
@@ -211,7 +211,7 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
         </section>
       )}
 
-      <div className="grid gap-6">
+      <div className="grid gap-6 md:grid-cols-2">
         <section className="rise">
           <SectionTitle action={{ href: "/perfs", label: "Tous les mouvements" }}>Tests à faire</SectionTitle>
           {toTest.length ? (

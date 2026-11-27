@@ -63,7 +63,7 @@ export default async function MovementPage({ params }: P) {
         <p className="mt-1 text-sm text-muted">{m.test_label}{m.equipment ? ` · ${m.equipment}` : ""}</p>
       </div>
 
-      <div className="grid gap-6">
+      <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">
         <div className="grid gap-6">
           <section className="rise rise-1 card grid grid-cols-3 divide-x divide-line p-0">
             <div className="p-4">
@@ -89,7 +89,7 @@ export default async function MovementPage({ params }: P) {
             {main ? (
               <>
                 <p className="mt-2 flex items-baseline gap-2"><span className="display text-5xl text-fog">{main.v}</span><span className="text-sm font-semibold text-muted">{main.u}</span></p>
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                   <div><p className="text-[11px] text-dim">30 derniers jours</p><p className="mt-0.5 font-semibold tabular-nums text-fog">{qty(vol.last30)}</p></div>
                   <div><p className="text-[11px] text-dim">Séances</p><p className="mt-0.5 font-semibold tabular-nums text-fog">{vol.total.sessions}</p></div>
                   <div><p className="text-[11px] text-dim">Charge max utilisée</p><p className="mt-0.5 font-semibold tabular-nums text-fog">{vol.total.topKg != null ? `${String(vol.total.topKg).replace(".", ",")} kg` : "—"}</p></div>
