@@ -155,13 +155,13 @@ export default async function Planning({ searchParams }: { searchParams: Promise
       )}
 
       {/* Répartition des mouvements */}
-      <section className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-muted">
+      <section className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[14px] text-muted">
         {MODALITY_ORDER.map((k) => {
           const g = mix.get(k)!;
           const top = [...g.mvs.entries()].sort((x, y) => y[1] - x[1]).slice(0, 3).map(([n, c]) => `${n}${c > 1 ? ` ×${c}` : ""}`).join(", ");
           return (
             <span key={k} className="flex items-center gap-1.5" title={top || undefined}>
-              <span className="h-1.5 w-1.5 rounded-full" style={{ background: MIX_COLOR[k] }} />
+              <span className="h-2 w-2 rounded-full" style={{ background: MIX_COLOR[k] }} />
               {MODALITY_LABEL[k]} <b className="font-semibold tabular-nums text-fog">× {g.n}</b>
               {mixTotal > 0 && <span className="text-dim">{Math.round((g.n / mixTotal) * 100)} %</span>}
               {g.n > 0 && PATTERNS_OF[k].length > 0 && (
@@ -171,7 +171,7 @@ export default async function Planning({ searchParams }: { searchParams: Promise
           );
         })}
         {mixTotal > 0 && (
-          <span className="flex h-1 w-28 overflow-hidden rounded-full bg-panel-3">
+          <span className="flex h-1.5 w-36 overflow-hidden rounded-full bg-panel-3">
             {MODALITY_ORDER.map((k) => <span key={k} style={{ width: `${(mix.get(k)!.n / mixTotal) * 100}%`, background: MIX_COLOR[k] }} />)}
           </span>
         )}
