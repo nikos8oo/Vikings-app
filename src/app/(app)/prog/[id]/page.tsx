@@ -9,6 +9,7 @@ import { requireMe } from "@/lib/session";
 import type { Result, Workout } from "@/lib/types";
 import { ScoreForm } from "@/components/ScoreForm";
 import { StructuredLog } from "@/components/StructuredLog";
+import { canSeeWorkout } from "@/lib/tracks";
 import { blockStyle, colorHex } from "@/lib/colors";
 import { formatLabel, loadFor, setsText, type Rx } from "@/lib/prescription";
 import { DeleteResult } from "@/components/DeleteButton";
@@ -31,7 +32,7 @@ export default async function WorkoutPage({ params }: P) {
   const { id } = await params;
   const me = await requireMe();
   const w = await getWorkout(id);
-  if (!w) notFound();
+  if (!w || !canSeeWorkout(me, w)) notFound();
   const [board, mineRes, mmap] = await Promise.all([
     leaderboard(w),
     db().from("results").select("*").eq("athlete_id", me.id).eq("workout_id", id).order("performed_on", { ascending: false }),

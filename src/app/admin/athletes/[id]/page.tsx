@@ -11,6 +11,7 @@ import { DomainRadar, LevelRing } from "@/components/viz";
 import { DeleteResult } from "@/components/DeleteButton";
 import { ScoreBadge, SectionTitle } from "@/components/ui";
 import { RoleSelect } from "./RoleSelect";
+import { ProgramToggle } from "../ProgramToggle";
 
 export const metadata: Metadata = { title: "Athlète" };
 
@@ -42,6 +43,13 @@ export default async function AthleteAdmin({ params }: { params: Promise<{ id: s
             </p>
           </div>
           {me.role === "admin" && me.id !== a.id && <RoleSelect id={a.id} role={a.role} />}
+        </div>
+        <div className="card mt-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div>
+            <p className="text-[14px] font-semibold text-fog">Programmes affectés</p>
+            <p className="text-[12px] text-muted">{a.role === "athlete" ? "L'athlète ne voit que la programmation de ses programmes (les qualifs et benchmarks restent ouverts)." : "L'équipe Vikings voit toute la programmation."}</p>
+          </div>
+          <ProgramToggle id={a.id} programs={a.programs ?? []} />
         </div>
       </div>
 

@@ -6,7 +6,7 @@ import { updateTracks } from "@/app/actions/profile";
 import { SUBTRACKS } from "@/lib/tracks";
 
 /** Choix des programmes suivis : chips à bascule, enregistrement immédiat. */
-export function TrackPicker({ tracks }: { tracks: string[] }) {
+export function TrackPicker({ tracks, programs }: { tracks: string[]; programs: string[] }) {
   const [pending, start] = useTransition();
   const [opt, setOpt] = useOptimistic(tracks);
   const toggle = (t: string) => {
@@ -25,11 +25,14 @@ export function TrackPicker({ tracks }: { tracks: string[] }) {
   };
   return (
     <div className={`grid gap-3 ${pending ? "opacity-70" : ""}`}>
-      <div className="flex flex-wrap gap-2"><Chip v="competition" l="Vikings Compétition" /><Chip v="qualif" l="Qualifs" /></div>
-      <div>
-        <p className="mb-1.5 text-[12px] font-semibold text-muted">Vikings Affiliates</p>
-        <div className="flex flex-wrap gap-2">{SUBTRACKS.map((st) => <Chip key={st.id} v={`aff:${st.id}`} l={st.label} />)}</div>
-      </div>
+      <div className="flex flex-wrap gap-2">{programs.includes("competition") && <Chip v="competition" l="Vikings Compétition" />}<Chip v="qualif" l="Qualifs" /></div>
+      {programs.includes("affiliates") && (
+        <div>
+          <p className="mb-1.5 text-[12px] font-semibold text-muted">Vikings Affiliates</p>
+          <div className="flex flex-wrap gap-2">{SUBTRACKS.map((st) => <Chip key={st.id} v={`aff:${st.id}`} l={st.label} />)}</div>
+        </div>
+      )}
+      <p className="text-[11px] text-dim">Tes programmes sont attribués par l&apos;équipe Vikings.</p>
     </div>
   );
 }

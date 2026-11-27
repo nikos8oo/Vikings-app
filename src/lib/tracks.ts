@@ -50,3 +50,25 @@ export function trackLabel(key: string, long = false): string {
 export function sourcesOf(keys: string[]): string[] {
   return [...new Set(keys.map((k) => parseTrack(k).source))];
 }
+
+/* ---------- Affectation : un athlète ne voit que ses programmes (+ qualifs et benchmarks, ouverts à tous) ---------- */
+export const PROGRAM_IDS = ["competition", "affiliates"] as const;
+const OPEN_TO_ALL = ["qualif", "benchmark"];
+type Viewer = { role: string; programs?: string[] | null };
+
+const isStaff = (me: Viewer) => me.role === "admin" || me.role === "coach";
+
+export function visibleSources(me: Viewer): string[] {
+  if (isStaff(me)) return ["competition", "affiliates", "qualif", "benchmark", "vikings"];
+  return [...(me.programs ?? []).filter((p) => (PROGRAM_IDS as readonly string[]).includes(p)), ...OPEN_TO_ALL];
+}
+
+export function canSeeWorkout(me: Viewer, w: { source: string }): boolean {
+  return visibleSources(me).includes(w.source === "vikings" ? "competition" : w.source);
+}
+
+/** Pistes que l'athlète a le droit de suivre. */
+export function allowedTrackKeys(me: Viewer): string[] {
+  const src = visibleSources(me);
+  return FOLLOWABLE.filter((k) => src.includes(parseTrack(k).source));
+}

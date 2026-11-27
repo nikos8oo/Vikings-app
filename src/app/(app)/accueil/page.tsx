@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { fmtDate, fmtMetric, fmtScore, todayParis } from "@/lib/format";
 import { formatLabel } from "@/lib/prescription";
 import { blockStyle, colorHex } from "@/lib/colors";
-import { DEFAULT_TRACKS, FOLLOWABLE, parseTrack, sourcesOf, trackKey } from "@/lib/tracks";
+import { allowedTrackKeys, DEFAULT_TRACKS, FOLLOWABLE, parseTrack, sourcesOf, trackKey, visibleSources } from "@/lib/tracks";
 import { monthGrid, TrainingCalendar, type DayMark } from "@/components/TrainingCalendar";
 import { TrackPicker } from "@/components/TrackPicker";
 import { DOMAINS, nextTier, tierOf } from "@/lib/scoring";
@@ -22,7 +22,9 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
   const { bienvenue, d } = await searchParams;
   const today = todayParis();
   const selected = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : today;
-  const tracks = (me.tracks?.length ? me.tracks : DEFAULT_TRACKS).filter((t) => FOLLOWABLE.includes(t));
+  const allowed = allowedTrackKeys(me);
+  const chosen = (me.tracks?.length ? me.tracks : DEFAULT_TRACKS).filter((t) => allowed.includes(t));
+  const tracks = chosen.length ? chosen : allowed;
   const { from, to } = monthGrid(selected);
   const [results, movements, monthRes] = await Promise.all([
     getResults(me.id),
@@ -63,7 +65,7 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
           <TrainingCalendar selected={selected} today={today} marks={marks} />
           <details className="card px-4 py-3">
             <summary className="cursor-pointer text-[13px] font-semibold text-muted">Mes programmes · {tracks.length}</summary>
-            <div className="mt-3"><TrackPicker tracks={tracks} /></div>
+            <div className="mt-3"><TrackPicker tracks={tracks} programs={visibleSources(me)} /></div>
           </details>
         </div>
 

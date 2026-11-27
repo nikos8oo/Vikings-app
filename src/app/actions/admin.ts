@@ -247,3 +247,19 @@ export async function duplicateWorkout(id: string, date: string) {
   await db().from("workouts").insert({ ...copy, workout_date: date });
   revalidatePath("/", "layout");
 }
+
+/** Affecte un athlète à Vikings Compétition et/ou Vikings Affiliates (il ne voit que ceux-là). */
+export async function setPrograms(athleteId: string, programs: string[]) {
+  await requireStaff();
+  const clean = [...new Set(programs.filter((x) => x === "competition" || x === "affiliates"))];
+  const { data } = await db().from("athletes").select("tracks").eq("id", athleteId).single();
+  let tracks: string[] = (data?.tracks as string[] | null) ?? [];
+  // garde les pistes encore autorisées, et ouvre une piste par défaut sur un programme ajouté
+  tracks = tracks.filter((t) => t === "qualif" || (t === "competition" ? clean.includes("competition") : t.startsWith("aff:") ? clean.includes("affiliates") : false));
+  if (clean.includes("competition") && !tracks.includes("competition")) tracks.push("competition");
+  if (clean.includes("affiliates") && !tracks.some((t) => t.startsWith("aff:"))) tracks.push("aff:crossfit");
+  if (!tracks.includes("qualif")) tracks.push("qualif");
+  await db().from("athletes").update({ programs: clean, tracks }).eq("id", athleteId);
+  revalidatePath("/admin/athletes");
+  revalidatePath(`/admin/athletes/${athleteId}`);
+}

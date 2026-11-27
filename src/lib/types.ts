@@ -27,6 +27,7 @@ export type Athlete = {
   created_at: string;
   last_seen_at: string | null;
   tracks?: string[];
+  programs?: string[];
 };
 
 export type Movement = {

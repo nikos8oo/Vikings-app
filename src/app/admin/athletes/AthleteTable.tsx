@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { tierOf } from "@/lib/scoring";
+import { ProgramToggle } from "./ProgramToggle";
 
 type Row = {
-  id: string; name: string; email: string; sex: string; role: string; box: string; level: number | null; tier: string;
+  id: string; name: string; email: string; sex: string; role: string; programs: string[]; box: string; level: number | null; tier: string;
   provisional: boolean; tests: number; results: number; last: string | null; domains: Record<string, number | null>;
 };
 const DOM = [["force", "FOR"], ["halterophilie", "HAL"], ["gymnastique", "GYM"], ["engine", "ENG"], ["metcon", "MET"]];
@@ -43,7 +44,7 @@ export function AthleteTable({ rows, boxes }: { rows: Row[]; boxes: string[] }) 
         <table className="w-full min-w-[860px] text-sm">
           <thead className="text-left text-[11px] text-dim">
             <tr className="border-b border-line">
-              <th className="px-4 py-3">{th("name", "Athlète")}</th><th className="px-3">BOX</th><th className="px-3">{th("level", "Niveau")}</th>
+              <th className="px-4 py-3">{th("name", "Athlète")}</th><th className="px-3">PROG.</th><th className="px-3">BOX</th><th className="px-3">{th("level", "Niveau")}</th>
               {DOM.map(([, l]) => <th key={l} className="px-1.5 text-center uppercase tracking-wider">{l}</th>)}
               <th className="px-3">{th("results", "Perfs")}</th><th className="px-3">{th("last", "Dernière")}</th>
             </tr>
@@ -56,6 +57,7 @@ export function AthleteTable({ rows, boxes }: { rows: Row[]; boxes: string[] }) 
                   <span className="ml-1.5 text-xs text-dim">{r.sex}</span>
                   {r.role !== "athlete" && <span className="ml-1.5 rounded bg-lime px-1 text-[9px] font-bold uppercase text-ink">{r.role}</span>}
                 </td>
+                <td className="px-3">{r.role === "athlete" ? <ProgramToggle id={r.id} programs={r.programs} compact /> : <span className="text-[11px] text-dim">tout</span>}</td>
                 <td className="px-3 text-muted">{r.box || "—"}</td>
                 <td className="px-3"><Cell v={r.level} /> <span className="text-xs text-muted">{r.tier}{r.provisional && r.level != null ? "*" : ""}</span></td>
                 {DOM.map(([k]) => <td key={k} className="px-1.5 text-center"><Cell v={r.domains[k]} /></td>)}

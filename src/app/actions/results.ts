@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { parseNum, parseTime, todayParis } from "@/lib/format";
 import { requireMe } from "@/lib/session";
 import { getMaxes } from "@/lib/data";
+import { canSeeWorkout } from "@/lib/tracks";
 import { computeVolume, FORMATS, heaviest, type Detail, type Rx } from "@/lib/prescription";
 import type { Metric, ScoreType, Workout } from "@/lib/types";
 
@@ -47,8 +48,8 @@ export async function addMovementResult(_: ResultState, f: FormData): Promise<Re
 export async function addWorkoutResult(_: ResultState, f: FormData): Promise<ResultState> {
   const me = await requireMe();
   const workout_id = String(f.get("workout_id"));
-  const { data: w } = await db().from("workouts").select("id,score_type,reps_per_round,published").eq("id", workout_id).single();
-  if (!w || !w.published) return { error: "Séance introuvable." };
+  const { data: w } = await db().from("workouts").select("id,score_type,reps_per_round,published,source").eq("id", workout_id).single();
+  if (!w || !w.published || !canSeeWorkout(me, w)) return { error: "Séance introuvable." };
   const capped = f.get("capped") === "on" && w.score_type === "time";
   const value = capped ? parseNum(String(f.get("cap_reps") ?? "")) : readValue(w.score_type as ScoreType, f, w.reps_per_round);
   if (w.score_type === "none") {
@@ -79,7 +80,7 @@ export async function addStructuredResult(_: ResultState, f: FormData): Promise<
   const workout_id = String(f.get("workout_id"));
   const { data } = await db().from("workouts").select("*").eq("id", workout_id).single();
   const w = data as Workout | null;
-  if (!w || !w.published || !w.format) return { error: "Séance introuvable." };
+  if (!w || !w.published || !w.format || !canSeeWorkout(me, w)) return { error: "Séance introuvable." };
   const rx: Rx = { format: w.format, items: w.items ?? [], rounds: w.rounds, duration_s: w.duration_s, interval_s: w.interval_s, rep_scheme: w.rep_scheme, emom_mode: w.emom_mode, time_cap_s: w.time_cap_s, variant: w.variant ?? null };
   const as_written = f.get("as_written") !== "off";
   const division = ["rx", "scaled", "foundation"].includes(String(f.get("division"))) ? (String(f.get("division")) as "rx") : "rx";

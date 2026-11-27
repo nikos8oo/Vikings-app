@@ -14,7 +14,7 @@ export default async function Athletes() {
   const rows = athletes.map((a) => {
     const lv = levels.get(a.id)!;
     return {
-      id: a.id, name: `${a.first_name} ${a.last_name}`, email: a.email, sex: a.sex, role: a.role,
+      id: a.id, name: `${a.first_name} ${a.last_name}`, email: a.email, sex: a.sex, role: a.role, programs: a.programs ?? [],
       box: a.box_id ? bname.get(a.box_id) ?? "" : "",
       level: lv.global, tier: lv.global != null ? tierOf(lv.global).label : "",
       provisional: lv.provisional, tests: lv.tests.length, results: lv.count, last: lv.last,

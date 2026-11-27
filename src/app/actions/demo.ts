@@ -84,6 +84,7 @@ export async function generateDemo(): Promise<DemoState> {
       first_name: a.first, last_name: a.last, sex: a.sex, birth_year: 1988 + (i * 3) % 15,
       bodyweight_kg: a.sex === "M" ? 74 + (i * 5) % 18 : 58 + (i * 4) % 14,
       box_id: boxes[i % boxes.length].id, role: "athlete", avatar_color: colors[i % colors.length], tracks: a.tracks, is_demo: true,
+      programs: [...(a.tracks.includes("competition") ? ["competition"] : []), ...(a.tracks.some((t) => t.startsWith("aff:")) ? ["affiliates"] : [])],
     }));
     const athletes = await insertBatched("athletes", aRows, "id,email");
     const idByEmail = new Map(athletes.map((a) => [a.email as string, a.id as string]));

@@ -1,3 +1,4 @@
+import { visibleSources } from "@/lib/tracks";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db, must } from "@/lib/db";
@@ -15,7 +16,7 @@ export default async function Prog({ searchParams }: { searchParams: Promise<{ s
   const me = await requireMe();
   const s = (await searchParams).s ?? "all";
   const today = todayParis();
-  let q = db().from("workouts").select("*").eq("published", true).order("workout_date", { ascending: false }).order("block", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }).limit(80);
+  let q = db().from("workouts").select("*").eq("published", true).in("source", visibleSources(me)).order("workout_date", { ascending: false }).order("block", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }).limit(80);
   if (s !== "all") q = q.eq("source", s);
   else q = q.neq("source", "benchmark");
   const [workouts, mine] = await Promise.all([
@@ -60,7 +61,7 @@ export default async function Prog({ searchParams }: { searchParams: Promise<{ s
       <p className="kicker rise">Programmation</p>
       <h1 className="display rise rise-1 mt-1 text-4xl text-fog">La prog</h1>
       <div className="no-scrollbar rise rise-2 -mx-5 mt-5 flex gap-2 overflow-x-auto px-5">
-        {FILTERS.map((f) => (
+        {FILTERS.filter((f) => f === "all" || visibleSources(me).includes(f)).map((f) => (
           <Link key={f} href={f === "all" ? "/prog" : `/prog?s=${f}`} className={`chip shrink-0 ${s === f ? "border-bleu bg-bleu text-white" : ""}`}>
             {f === "all" ? "Tout" : f === "benchmark" ? "Benchmarks" : SOURCE_LABEL[f]}
           </Link>
