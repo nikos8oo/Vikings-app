@@ -210,7 +210,7 @@ export async function setRole(athleteId: string, role: string) {
 }
 
 const METRICS = ["load", "reps", "time", "distance", "calories", "height"];
-const CATEGORIES = ["halterophilie", "force", "gymnastique", "engine", "haltere_kb", "renfo", "core", "strongman"];
+const CATEGORIES = ["halterophilie", "force", "gymnastique", "engine", "haltere_kb", "renfo", "core", "strongman", "mobilite"];
 
 /** Ajout d'un mouvement au référentiel (admin). */
 export async function createMovement(_: AdminState, f: FormData): Promise<AdminState> {

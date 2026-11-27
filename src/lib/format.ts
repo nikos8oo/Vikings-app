@@ -64,6 +64,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   renfo: "Renforcement",
   core: "Core",
   strongman: "Strongman",
+  mobilite: "Mobilité",
 };
 
 /** Trois grandes familles : poids de corps / charge externe / cardio. */
@@ -79,7 +80,7 @@ export const MODALITY_ORDER = ["gym", "halt", "mono"] as const;
 export const PATTERN_LABEL: Record<string, string> = { suspendu: "Suspendu", inverse: "Inversé", flexion: "Flexion", hinge: "Hinge", olympique: "Olympique" };
 export const PATTERNS_OF: Record<string, string[]> = { gym: ["suspendu", "inverse"], halt: ["flexion", "hinge", "olympique"], mono: [] };
 
-export const CATEGORY_ORDER = ["halterophilie", "force", "gymnastique", "engine", "haltere_kb", "renfo", "core", "strongman"];
+export const CATEGORY_ORDER = ["halterophilie", "force", "gymnastique", "engine", "haltere_kb", "renfo", "core", "strongman", "mobilite"];
 
 export function fmtDate(d: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" }) {
   return new Date(d + (d.length === 10 ? "T12:00:00" : "")).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", ...opts });

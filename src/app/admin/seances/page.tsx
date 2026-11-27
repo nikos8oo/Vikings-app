@@ -64,7 +64,7 @@ export default async function Planning({ searchParams }: { searchParams: Promise
   const mix = new Map<string, { n: number; mvs: Map<string, number>; pat: Map<string, number> }>(MODALITY_ORDER.map((k) => [k, { n: 0, mvs: new Map(), pat: new Map() }]));
   for (const w of workouts) for (const it of w.items ?? []) {
     const m = mmap.get(it.mv); const g = mix.get(m?.modality ?? "");
-    if (!m || !g) continue;
+    if (!m || !g || m.category === "mobilite") continue; // l'échauffement mobilité ne compte pas dans la répartition
     g.n++; g.mvs.set(m.name, (g.mvs.get(m.name) ?? 0) + 1);
     if (m.pattern) g.pat.set(m.pattern, (g.pat.get(m.pattern) ?? 0) + 1);
   }
