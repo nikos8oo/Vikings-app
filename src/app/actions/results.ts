@@ -81,7 +81,7 @@ export async function addStructuredResult(_: ResultState, f: FormData): Promise<
   const { data } = await db().from("workouts").select("*").eq("id", workout_id).single();
   const w = data as Workout | null;
   if (!w || !w.published || !w.format || !canSeeWorkout(me, w)) return { error: "Séance introuvable." };
-  const rx: Rx = { format: w.format, items: w.items ?? [], rounds: w.rounds, duration_s: w.duration_s, interval_s: w.interval_s, rep_scheme: w.rep_scheme, emom_mode: w.emom_mode, time_cap_s: w.time_cap_s, variant: w.variant ?? null };
+  const rx: Rx = { format: w.format, items: w.items ?? [], rounds: w.rounds, duration_s: w.duration_s, interval_s: w.interval_s, rep_scheme: w.rep_scheme, emom_mode: w.emom_mode, time_cap_s: w.time_cap_s, variant: w.variant ?? null, parts: w.parts ?? null };
   const as_written = f.get("as_written") !== "off";
   const division = ["rx", "scaled", "foundation"].includes(String(f.get("division"))) ? (String(f.get("division")) as "rx") : "rx";
 

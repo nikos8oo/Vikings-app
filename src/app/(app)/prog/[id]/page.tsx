@@ -40,7 +40,7 @@ export default async function WorkoutPage({ params }: P) {
     getMovementMap(),
   ]);
   const mine = (mineRes.data ?? []) as Result[];
-  const rx: Rx | null = w.format ? { format: w.format, items: w.items ?? [], rounds: w.rounds, duration_s: w.duration_s, interval_s: w.interval_s, rep_scheme: w.rep_scheme, emom_mode: w.emom_mode, time_cap_s: w.time_cap_s, variant: w.variant ?? null } : null;
+  const rx: Rx | null = w.format ? { format: w.format, items: w.items ?? [], rounds: w.rounds, duration_s: w.duration_s, interval_s: w.interval_s, rep_scheme: w.rep_scheme, emom_mode: w.emom_mode, time_cap_s: w.time_cap_s, variant: w.variant ?? null, parts: w.parts ?? null } : null;
   const maxes = rx ? await getMaxes(me.id, rx.items.map((i) => i.mv)) : {};
   const names = Object.fromEntries([...mmap.values()].filter((m) => w.movements.includes(m.id)).map((m) => [m.id, m.name]));
   const mine_kg = (it: Rx["items"][number]) => loadFor(it, me.sex, maxes[it.mv]);

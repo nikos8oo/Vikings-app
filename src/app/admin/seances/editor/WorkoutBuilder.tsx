@@ -4,7 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { saveWorkout } from "@/app/actions/admin";
 import { FormMessage, Submit } from "@/components/forms";
 import { MODALITY_LABEL, MODALITY_ORDER, PATTERN_LABEL, PATTERNS_OF, fmtTime, parseTime } from "@/lib/format";
-import { computeVolume, describe, FORMATS, RESULT_BY, repsPerRound, TEMPLATES, templateOf, type ResultBy, type Template, type Format, type Item, type Rx, type SetRx, youtubeId } from "@/lib/prescription";
+import { computeVolume, describe, FORMATS, RESULT_BY, repsPerRound, TEMPLATES, templateOf, partOf, type ResultBy, type Template, type Format, type Item, type Rx, type SetRx, youtubeId } from "@/lib/prescription";
 import { SUBTRACKS } from "@/lib/tracks";
 import { BLOCK_COLORS, blockStyle } from "@/lib/colors";
 import type { Workout } from "@/lib/types";
@@ -60,6 +60,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
     duration_s: w?.duration_s ?? null,
     interval_s: w?.interval_s ?? null,
     rep_scheme: w?.rep_scheme ?? null,
+    parts: w?.parts ?? null,
     emom_mode: w?.emom_mode ?? "all",
     time_cap_s: w?.time_cap_s ?? null,
     variant: initTpl?.id ?? "sets",
@@ -106,13 +107,14 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
       if (t.engine === "sets" || t.engine === "max") return { ...base, sets: it.sets?.length ? (t.engine === "max" ? [{ reps: it.sets[0].reps }] : it.sets) : [{ reps: t.engine === "max" ? 1 : 5 }] };
       return { ...base, sets: undefined };
     });
-    return { ...r, ...t.preset, format: t.engine, variant: t.id, items: t.group === "single" && !t.multiItems ? items.slice(0, 1) : items };
+    const parts = t.id === "parts_for_time" ? (r.parts?.length && r.parts.length > 1 ? r.parts : [{ rounds: 3, rest_s: null }, { rounds: 3, rest_s: null }]) : r.parts;
+    return { ...r, ...t.preset, format: t.engine, variant: t.id, parts, items: t.group === "single" && !t.multiItems ? items.slice(0, 1) : items };
   });
 
   const addMovement = (id: string) => {
     setRx((r) => ({
       ...r,
-      items: [...r.items, { ...(isSets ? { mv: id, sets: r.format === "max" ? [{ reps: 1 }] : [{ reps: 5 }, { reps: 5 }, { reps: 5 }] } : { mv: id }), video: movements.find((m) => m.id === id)?.video_url ?? null }],
+      items: [...r.items, { ...(isSets ? { mv: id, sets: r.format === "max" ? [{ reps: 1 }] : [{ reps: 5 }, { reps: 5 }, { reps: 5 }] } : { mv: id }), video: movements.find((m) => m.id === id)?.video_url ?? null, part: r.variant === "parts_for_time" ? r.parts?.length ?? 1 : null }],
     }));
   };
 
@@ -375,11 +377,40 @@ function FormatParams({ rx, tpl, patch }: { rx: Rx; tpl: Template; patch: (p: Pa
         <input defaultValue={v ? fmtTime(v) : ""} placeholder={ph[pm]} onChange={(ev) => patch({ [k]: ev.target.value.trim() ? parseTime(ev.target.value) : null } as Partial<Rx>)} className="ios-input" /></label>
     );
   });
-  if (!rows.length) return null;
+  const parts = rx.parts ?? [];
+  const setPart = (k: number, p: Partial<NonNullable<Rx["parts"]>[number]>) => patch({ parts: parts.map((x, i) => (i === k ? { ...x, ...p } : x)) });
+  const partRows = tpl.id === "parts_for_time" ? parts.flatMap((pt, k) => [
+    k > 0 ? (
+      <div key={`rest-${k}`} className="ios-row justify-between bg-panel-2/40">
+        <span className="ios-label text-muted">Entre partie {k} et {k + 1}</span>
+        <span className="flex items-center gap-2">
+          <div className="seg">
+            <button type="button" aria-pressed={!parts[k - 1].rest_s} onClick={() => setPart(k - 1, { rest_s: null })} className="seg-btn px-2.5 text-[12px]">Directement</button>
+            <button type="button" aria-pressed={!!parts[k - 1].rest_s} onClick={() => setPart(k - 1, { rest_s: parts[k - 1].rest_s || 120 })} className="seg-btn px-2.5 text-[12px]">Repos</button>
+          </div>
+          {!!parts[k - 1].rest_s && <input key={`r${k}-${parts[k - 1].rest_s ? 1 : 0}`} defaultValue={fmtTime(parts[k - 1].rest_s!)} placeholder="2:00" onChange={(ev) => setPart(k - 1, { rest_s: ev.target.value.trim() ? parseTime(ev.target.value) : 120 })} className="ios-cell w-20" />}
+        </span>
+      </div>
+    ) : null,
+    <div key={`part-${k}`} className="ios-row">
+      <span className="ios-label">Partie {k + 1}</span>
+      <input value={show(pt.rounds)} inputMode="numeric" placeholder="3" onChange={(ev) => setPart(k, { rounds: num(ev.target.value) ?? 1 })} className="ios-input" />
+      <span className="text-[15px] text-dim">tours</span>
+      {parts.length > 2 && <button type="button" onClick={() => patch({ parts: parts.filter((_, i) => i !== k), items: rx.items.map((it) => ({ ...it, part: Math.max(1, (it.part ?? 1) > k + 1 ? (it.part ?? 1) - 1 : (it.part ?? 1) === k + 1 ? Math.max(1, k) : it.part ?? 1) })) })} className="pl-2 text-[13px] text-danger/90">Retirer</button>}
+    </div>,
+  ]).filter(Boolean) : [];
+  if (!rows.length && !partRows.length) return null;
   return (
     <section>
       <h2 className="ios-head">{tpl.label}</h2>
-      <div className="ios-group">{rows}</div>
+      <div className="ios-group">
+        {partRows}
+        {tpl.id === "parts_for_time" && parts.length < 6 && (
+          <button type="button" onClick={() => patch({ parts: [...parts, { rounds: 3, rest_s: null }] })} className="ios-row w-full justify-center text-[14px] font-semibold text-bleu-2">+ Ajouter une partie</button>
+        )}
+        {rows}
+      </div>
+      {tpl.id === "parts_for_time" && <p className="ios-foot">Sur chaque mouvement, choisis sa partie. Le chrono tourne du début à la fin, repos compris.</p>}
       {tpl.phases && <p className="ios-foot">Sur chaque mouvement, choisis Buy-in, Tours ou Buy-out.</p>}
       {tpl.id === "amrap_series" && <p className="ios-foot">Pour des AMRAP aux mouvements différents, crée un bloc par AMRAP (parties A, B, C).</p>}
     </section>
@@ -439,6 +470,13 @@ function ItemCard({ it, index, rx, mv, setItem, onRemove, onMove }: {
           <span className="block truncate text-[15px] font-semibold text-fog">{mv?.name ?? it.mv}</span>
           <span className="block text-[12px] text-dim">{MODALITY_LABEL[mv?.modality ?? ""] ?? ""}</span>
         </span>
+        {rx.variant === "parts_for_time" && (rx.parts?.length ?? 0) > 1 && (
+          <div className="seg order-last w-full shrink-0 sm:order-none sm:w-auto">
+            {rx.parts!.map((_, k) => (
+              <button key={k} type="button" aria-pressed={partOf(it, rx) === k + 1} onClick={() => up({ part: k + 1 })} className="seg-btn px-2.5 text-[12px]">Partie {k + 1}</button>
+            ))}
+          </div>
+        )}
         {templateOf(rx).phases && (
           <div className="seg order-last w-full shrink-0 sm:order-none sm:w-auto">
             {([["buy_in", "Buy-in"], [null, "Tours"], ["buy_out", "Buy-out"]] as const).map(([v, l]) => (

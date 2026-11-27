@@ -76,6 +76,7 @@ export type Workout = {
   duration_s: number | null;
   interval_s: number | null;
   rep_scheme: number[] | null;
+  parts?: { rounds: number; rest_s?: number | null }[] | null;
   emom_mode: "all" | "alternate" | null;
   block: string | null;
   variant?: string | null;

@@ -31,7 +31,11 @@ export type Item = {
   note?: string | null;
   video?: string | null;      // lien YouTube de démo
   phase?: "buy_in" | "buy_out" | null; // fait une seule fois, avant / après les tours
+  part?: number | null;       // séance en plusieurs parties : n° de partie (1 par défaut)
 };
+
+/** Une partie d'une séance enchaînée (ex. 6 tours, puis 3 tours). rest_s = repos avant la partie suivante (null = directement). */
+export type Part = { rounds: number; rest_s?: number | null };
 
 /** Identifiant d'une vidéo YouTube (youtube.com/watch, youtu.be, shorts, embed), sinon null. */
 export function youtubeId(url?: string | null): string | null {
@@ -50,6 +54,7 @@ export type Rx = {
   emom_mode?: "all" | "alternate" | null;
   time_cap_s?: number | null;
   variant?: string | null;       // modèle choisi (catalogue façon BTWB)
+  parts?: Part[] | null;         // « Parties pour le temps » : 6 RFT → 3 RFT…
 };
 
 export const FORMATS: Record<Format, { label: string; desc: string; group: "single" | "multi"; score: ScoreType; better: Better }> = {
@@ -108,6 +113,7 @@ export const TEMPLATES: Template[] = [
   // Plusieurs mouvements — résultat au temps
   { id: "rft", label: "Tours pour le Temps", desc: "Un certain nombre de tours pour le temps (RFT).", group: "multi", by: "temps", engine: "rft", params: ["rounds", "cap"] },
   { id: "tft", label: "TFT : mêmes répétitions variables", desc: "Chaque tour a le même nombre de reps pour tous les mouvements (ex. 21-15-9).", group: "multi", by: "temps", engine: "for_time", params: ["scheme", "cap"] },
+  { id: "parts_for_time", label: "Parties pour le temps", desc: "Plusieurs parties enchaînées (ex. 6 tours puis 3 tours), avec ou sans repos entre elles.", group: "multi", by: "temps", engine: "rft", params: ["cap"] },
   { id: "tft_buy", label: "TFT avec Buy-In ou Buy-Out", desc: "Tâche avant et/ou après les tours principaux.", group: "multi", by: "temps", engine: "rft", params: ["rounds", "cap"], phases: true },
   { id: "each_round_time", label: "Chaque Tour pour le Temps", desc: "Chaque tour est chronométré, avec du repos entre les tours.", group: "multi", by: "temps", engine: "intervals", params: ["rounds", "rest"] },
   { id: "for_time", label: "Pour le Temps", desc: "Pas de tours, juste deux mouvements ou plus, tous pour le temps.", group: "multi", by: "temps", engine: "for_time", params: ["cap"] },
@@ -211,6 +217,12 @@ export function itemText(it: Item, name: string, opts: { scheme?: boolean } = {}
   return s;
 }
 
+/** N° de partie d'un mouvement (1 par défaut, borné au nombre de parties). */
+export function partOf(it: Item, rx: Pick<Rx, "parts">): number {
+  const n = rx.parts?.length ?? 1;
+  return Math.min(Math.max(1, Math.round(Number(it.part) || 1)), Math.max(1, n));
+}
+
 export function describe(rx: Rx, nameOf: (id: string) => string): string {
   const L: string[] = [];
   const all = rx.items.filter((i) => i.mv);
@@ -264,6 +276,14 @@ export function describe(rx: Rx, nameOf: (id: string) => string): string {
       break;
     }
     case "rft":
+      if (rx.parts && rx.parts.length > 1) {
+        rx.parts.forEach((pt, k) => {
+          if (k > 0) L.push(rx.parts![k - 1].rest_s ? `— Repos ${fmtDur(rx.parts![k - 1].rest_s!)} —` : "— Directement —");
+          L.push(`${k === 0 ? "" : "Puis "}${pt.rounds} round${pt.rounds > 1 ? "s" : ""}${k === 0 ? " for time" : ""}`);
+          items.filter((it) => partOf(it, rx) === k + 1).forEach((it) => L.push(itemText(it, nameOf(it.mv))));
+        });
+        break;
+      }
       L.push(`${rounds ?? "?"} rounds for time`);
       items.forEach((it) => L.push(itemText(it, nameOf(it.mv))));
       break;
@@ -403,6 +423,22 @@ export function computeVolume(rx: Rx, p: Performance): VolumeRow[] {
     }
     case "for_time":
     case "rft": {
+      if (rx.format === "rft" && rx.parts && rx.parts.length > 1) {
+        // parties enchaînées : chaque partie × ses tours, dans l'ordre ; au cap on s'arrête où le score s'arrête
+        let left = p.capped ? p.value : Infinity;
+        for (let k = 0; k < rx.parts.length && left > 0; k++) {
+          const seq = roundSeq(0).filter((x) => partOf(x.it, rx) === k + 1);
+          for (let r = 0; r < rx.parts[k].rounds && left > 0; r++) {
+            for (const { it, a, q } of seq) {
+              if (left <= 0) break;
+              const done = Math.min(q, left);
+              part(it, a, q, done);
+              left -= done;
+            }
+          }
+        }
+        break;
+      }
       const totalRounds = rx.format === "rft" ? n(rx.rounds) ?? 1 : roundsWithScheme;
       if (!p.capped) walk(totalRounds, 0);
       else {
@@ -478,6 +514,7 @@ export function sanitizeRx(raw: unknown): Rx | string {
     note: typeof i.note === "string" && i.note.trim() ? i.note.trim().slice(0, 140) : null,
     video: youtubeId(i.video) ? String(i.video).trim().slice(0, 300) : null,
     phase: i.phase === "buy_in" || i.phase === "buy_out" ? i.phase : null,
+    part: pos(i.part, 10),
   }));
   if (!items.length) return "Ajoute au moins un mouvement.";
   const f = r.format;
@@ -492,7 +529,16 @@ export function sanitizeRx(raw: unknown): Rx | string {
     emom_mode: r.emom_mode === "alternate" ? "alternate" : "all",
     time_cap_s: pos(r.time_cap_s, 36000),
     variant: tpl?.id ?? null,
+    parts: null,
   };
+  if (tpl?.id === "parts_for_time") {
+    const parts = (Array.isArray(r.parts) ? r.parts : []).slice(0, 6).map((pt) => ({ rounds: pos(pt?.rounds, 500) ?? 1, rest_s: pos(pt?.rest_s, 3600) }));
+    if (parts.length < 2) return "Ajoute au moins deux parties.";
+    out.parts = parts;
+    out.rounds = parts.reduce((s, pt) => s + pt.rounds, 0);
+    for (const it of out.items) it.part = partOf(it, out);
+    for (let k = 1; k <= parts.length; k++) if (!out.items.some((it) => it.part === k)) return `La partie ${k} n'a aucun mouvement.`;
+  } else for (const it of out.items) it.part = null;
   if ((f === "amrap" || f === "amreps") && !out.duration_s) return "Indique la durée.";
   if (out.items.every((i) => i.phase)) return "Ajoute au moins un mouvement dans les tours (hors buy-in / buy-out).";
   if ((f === "rft" || f === "intervals" || f === "emom") && !out.rounds) return f === "emom" ? "Indique le nombre de minutes (ou d'intervalles)." : "Indique le nombre de tours.";

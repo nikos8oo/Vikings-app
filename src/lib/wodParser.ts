@@ -29,10 +29,13 @@ const ALIASES: [RegExp, string][] = [
   [/\bstrict\b|\bstricts\b/g, "strict"], [/&/g, " "],
 ];
 const STOP = new Set(["with", "the", "de", "du", "des", "a", "à", "au", "aux", "les", "le", "la", "et", "en", "and", "or", "ou", "kg", "lb", "lbs", "m", "km",
-  "each", "side", "chaque", "par", "x", "reps", "rep", "sur", "pour", "then", "puis", "sec", "s", "min", "charge", "libre", "if", "needed", "ub", "unbroken"]);
+  "each", "side", "chaque", "par", "x", "reps", "rep", "sur", "pour", "then", "puis", "sec", "s", "min", "charge", "libre", "if", "needed", "ub", "unbroken", "walking", "marchee", "marchees"]);
+/** Mots qui changent le mouvement : s'ils sont dans la ligne mais pas dans le nom, ce n'est pas le bon. */
+const VARIANTS = new Set(["strict", "kipping", "butterfly", "power", "hang", "high", "low", "squat", "box", "over", "legless", "deficit", "weighted", "pause", "tempo",
+  "single", "dual", "ring", "bar", "front", "back", "overhead", "sumo", "romanian", "push", "split", "muscle", "jumping", "banded", "negative", "dumbbell", "kettlebell", "ghd"]);
 /** Mouvement « par défaut » quand plusieurs correspondent aussi bien (ex. « pull-ups » = kipping). */
 const PREFERRED = new Set(["kipping-pull-up", "kipping-hspu", "run", "row", "ski-erg", "bike-erg", "echo-bike", "clean", "snatch", "push-up", "burpee",
-  "wall-ball", "toes-to-bar", "back-squat", "front-squat", "deadlift", "thruster", "box-jump", "double-under", "kb-swing", "clean-and-jerk", "power-clean", "lunge-bw"]);
+  "wall-ball", "toes-to-bar", "abmat-sit-up", "back-squat", "front-squat", "deadlift", "thruster", "box-jump", "double-under", "kb-swing", "clean-and-jerk", "power-clean", "lunge-bw"]);
 
 const clean = (s: string) => s
   .replace(/[‘’´`]/g, "'").replace(/[“”″]/g, '"').replace(/′/g, "'")
@@ -44,7 +47,7 @@ function norm(s: string) {
   for (const [re, to] of ALIASES) t = t.replace(re, ` ${to} `);
   return t.replace(/-/g, " ").replace(/\s+/g, " ").trim();
 }
-const tokens = (s: string) => norm(s).split(" ").filter((w) => w && !STOP.has(w) && !/^\d/.test(w)).map((w) => (w.length > 4 && w.endsWith("s") ? w.slice(0, -1) : w));
+const tokens = (s: string) => norm(s).split(" ").filter((w) => w && !STOP.has(w) && !/^\d/.test(w)).map((w) => (w === "ups" ? "up" : w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w));
 
 /* ---------- Correspondance mouvement ---------- */
 
@@ -72,17 +75,19 @@ export function matchMovement(text: string, idx: Index): { id: string; name: str
     let s = cover * 0.65 + prec * 0.35;
     if (n.phrase && phrase.includes(` ${n.phrase} `)) s += 0.15;
     if (xhit) s += 0.05;
+    const all = new Set([...n.main, ...n.extra]);
+    s -= 0.08 * lt.filter((t) => VARIANTS.has(t) && !all.has(t)).length;  // « strict » dans la ligne, absent du nom
     if (cover < 1) s -= 0.1;                         // un mot du nom manque
     return s;
   };
   const out = idx.map((m) => {
     let sc = Math.max(0, ...m.names.map(scoreOf));
-    if (/-\d|\d(?:min|k)?$/.test(m.id)) sc -= 0.08;   // tests chronométrés (row-500, run-5k…) : jamais par défaut
+    if (/-\d|\d(?:min|k)?$/.test(m.id)) sc -= 0.2;   // tests chronométrés (row-500, run-5k…) : jamais par défaut
     if (PREFERRED.has(m.id)) sc += 0.02;
     return { id: m.id, name: m.name, raw: sc };
   }).filter((c) => c.raw > 0.2).sort((a, b) => b.raw - a.raw || a.name.length - b.name.length).slice(0, 5);
   // Deux mouvements presque à égalité : on demande de vérifier
-  const close = out.length > 1 && out[0].raw - out[1].raw < 0.04;
+  const close = out.length > 1 && out[0].raw - out[1].raw < 0.1 && !(PREFERRED.has(out[0].id) && !PREFERRED.has(out[1].id));
   return out.map((c, i) => ({ id: c.id, name: c.name, score: Math.round(Math.min(i === 0 && close ? 0.69 : 1, c.raw) * 100) / 100 }));
 }
 
@@ -190,13 +195,21 @@ export function parseWod(text: string, mvs: MvLite[]): ParseResult {
   const rawLines = text.split(/\r?\n/).map(clean).filter(Boolean);
   let head: Head = {};
   const lines: ParsedLine[] = [];
+  const push = (l: ParsedLine) => { if (partsDef.length) l.item.part = partsDef.length; lines.push(l); };
   const notes: string[] = [];
   const warnings: string[] = [];
   const setPcts: number[] = [];
   let title: string | null = null;
   let alternate = false;
+  // Séance en plusieurs parties (6 RFT → 3 RFT…)
+  const partsDef: { rounds: number; rest_s: number | null }[] = [];
+  let pendingRest: number | null = null;
 
   rawLines.forEach((raw, i) => {
+    // Séparateurs entre parties : « --- directly into --- », « puis », « Rest 2' »…
+    if (/^[-–—=_*\s]*(?:directly into|directement|enchain\w*|then|puis|into|-{2,}|—{1,})[-–—=_*\s]*$/i.test(raw)) { pendingRest = null; return; }
+    const restM = raw.match(new RegExp(String.raw`^(?:rest|repos|recup\w*)\s*:?\s*${DUR}\s*(?:rest|repos)?$|^${DUR}\s*(?:de\s*)?(?:rest|repos|recup\w*)$`, "i"));
+    if (restM && partsDef.length) { pendingRest = seconds(restM[1] ?? restM[2]); return; }
     const h = readHeader(raw);
     // « Min 1 : … » / « M1 : … » → EMOM en alternance
     const minute = raw.match(/^(?:min(?:ute)?\s*|m)(\d)\s*[:\-–]\s*(.+)$/i);
@@ -204,11 +217,19 @@ export function parseWod(text: string, mvs: MvLite[]): ParseResult {
     const set = raw.match(/^set\s*(\d+)\s*[:\-–]\s*(\d+(?:[.,]\d+)?)\s*%/i);
     if (set) { setPcts.push(num(set[2])!); return; }
     if (h && (h.format || h.setsCount || !readQuantity(raw))) {
+      const roundsOf = h.format === "rft" ? h.rounds ?? 1 : h.format === "for_time" && !h.rep_scheme?.length ? 1 : null;
+      if (roundsOf != null && partsDef.length && lines.some((l) => l.item.part === partsDef.length)) {
+        partsDef[partsDef.length - 1].rest_s = pendingRest; pendingRest = null;
+        partsDef.push({ rounds: roundsOf, rest_s: null });
+        if (h.time_cap_s) head.time_cap_s = h.time_cap_s;
+        return;
+      }
+      if (roundsOf != null && !partsDef.length && h.format === "rft") partsDef.push({ rounds: roundsOf, rest_s: null });
       head = { ...head, ...h, why: [head.why, h.why].filter(Boolean).join(" · ") };
       if (h.format === "max") {
         const rest = raw.replace(/^.*?\d+\s*rm\b/i, "").trim();
         const c = matchMovement(rest, idx);
-        if (c[0] && c[0].score >= 0.45) lines.push({ raw, item: { mv: c[0].id }, mv: c[0].id, confidence: c[0].score >= 0.7 ? "ok" : "check", candidates: c });
+        if (c[0] && c[0].score >= 0.45) push({ raw, item: { mv: c[0].id }, mv: c[0].id, confidence: c[0].score >= 0.7 ? "ok" : "check", candidates: c });
       }
       return;
     }
@@ -220,7 +241,7 @@ export function parseWod(text: string, mvs: MvLite[]): ParseResult {
       const c = matchMovement(ex.rest, idx);
       if (c[0] && c[0].score >= 0.7 && raw.length < 60 && !NOTE_HINT.test(raw)) {
         const { setsXreps: _s, ...q } = ex.q; // eslint-disable-line @typescript-eslint/no-unused-vars
-        lines.push({ raw, item: { mv: c[0].id, ...q }, mv: c[0].id, confidence: c[0].score >= 0.85 ? "ok" : "check", candidates: c });
+        push({ raw, item: { mv: c[0].id, ...q }, mv: c[0].id, confidence: c[0].score >= 0.85 ? "ok" : "check", candidates: c });
       } else if (i === 0 && raw.length <= 48 && !/\d{2,}/.test(raw.replace(/\[.*?\]/g, ""))) {
         title = raw.replace(/\[.*?\]/g, "").trim();
       } else notes.push(raw);
@@ -234,13 +255,15 @@ export function parseWod(text: string, mvs: MvLite[]): ParseResult {
     const item: Item = { mv: best && conf !== "unknown" ? best.id : "", ...q };
     if (setsXreps) item.sets = Array.from({ length: setsXreps[0] }, () => ({ reps: setsXreps[1], pct: q.pct ?? null, kg_m: q.kg_m ?? null, kg_f: q.kg_f ?? null }));
     if (/\brest\b|\brepos\b/i.test(parsed.rest) && conf === "unknown") { notes.push(raw); return; }
-    lines.push({ raw, item, mv: item.mv || null, confidence: conf, candidates: c });
+    push({ raw, item, mv: item.mv || null, confidence: conf, candidates: c });
   });
 
   // Format final
   let rx: Rx = { format: "for_time", items: [], rounds: null, duration_s: null, interval_s: null, rep_scheme: null, emom_mode: "all", time_cap_s: head.time_cap_s ?? null, variant: "for_time" };
   const items = lines.map((l) => l.item);
-  if (head.format === "max") {
+  if (partsDef.length > 1) {
+    rx = { ...rx, format: "rft", variant: "parts_for_time", parts: partsDef, rounds: partsDef.reduce((a, p) => a + p.rounds, 0), items };
+  } else if (head.format === "max") {
     rx = { ...rx, format: "max", variant: "max", items: items.slice(0, 1).map((it) => ({ ...it, sets: [{ reps: head.maxReps ?? 1 }] })) };
   } else if (head.setsCount || items.some((it) => it.sets?.length) || (!head.format && setPcts.length)) {
     const n = head.setsCount ?? setPcts.length ?? 1;
@@ -264,7 +287,9 @@ export function parseWod(text: string, mvs: MvLite[]): ParseResult {
   const unknown = lines.filter((l) => l.confidence === "unknown").length;
   if (unknown) warnings.push(`${unknown} mouvement${unknown > 1 ? "s" : ""} non reconnu${unknown > 1 ? "s" : ""} : choisis-le dans la liste.`);
 
-  const summary = rx.format === "amrap" ? `AMRAP ${rx.duration_s ? Math.round(rx.duration_s / 60) + " min" : ""}`
+  const summary = rx.parts && rx.parts.length > 1
+    ? rx.parts.map((p, k) => `${p.rounds} RFT${k < rx.parts!.length - 1 ? (p.rest_s ? ` → repos ${Math.round(p.rest_s / 60 * 10) / 10} min →` : " → directement →") : ""}`).join(" ")
+    : rx.format === "amrap" ? `AMRAP ${rx.duration_s ? Math.round(rx.duration_s / 60) + " min" : ""}`
     : rx.format === "emom" ? `EMOM ${rx.rounds ?? "?"} × ${rx.interval_s ? (rx.interval_s % 60 ? rx.interval_s + " s" : rx.interval_s / 60 + " min") : "?"}${rx.emom_mode === "alternate" ? " en alternance" : ""}`
     : rx.format === "for_time" ? `For time${rx.rep_scheme?.length ? " " + rx.rep_scheme.join("-") : ""}`
     : rx.format === "rft" ? `${rx.rounds} rounds for time`

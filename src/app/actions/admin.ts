@@ -89,6 +89,7 @@ export async function saveWorkout(_: AdminState, f: FormData): Promise<AdminStat
     duration_s: rx?.duration_s ?? null,
     interval_s: rx?.interval_s ?? null,
     rep_scheme: rx?.rep_scheme?.length ? rx.rep_scheme : null,
+    parts: rx?.parts ?? null,
     emom_mode: rx ? rx.emom_mode ?? null : null,
     block: str(f, "block").slice(0, 24) || null,
     subtrack: source === "affiliates" ? (SUBS.includes(str(f, "subtrack")) ? str(f, "subtrack") : "crossfit") : null,
@@ -126,7 +127,7 @@ export async function saveWorkout(_: AdminState, f: FormData): Promise<AdminStat
         movement_id: wx.format === "max" || (wx.format === "sets" && wx.items.length === 1) ? wx.items[0].mv : null,
         movements: ids,
         format: wx.format, items: wx.items, rounds: wx.rounds ?? null, duration_s: wx.duration_s ?? null, interval_s: wx.interval_s ?? null,
-        rep_scheme: wx.rep_scheme?.length ? wx.rep_scheme : null, emom_mode: wx.emom_mode ?? null,
+        rep_scheme: wx.rep_scheme?.length ? wx.rep_scheme : null, parts: wx.parts ?? null, emom_mode: wx.emom_mode ?? null,
       });
     }
   }
