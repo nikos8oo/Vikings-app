@@ -44,10 +44,10 @@ export function ScoreForm(p: Props) {
         <>
           <fieldset>
             <legend className="label">Version</legend>
-            <div className="grid grid-cols-3 gap-2">
-              {[["rx", "RX"], ["scaled", "Scaled"], ["foundation", "Foundation"]].map(([v, l], i) => (
+            <div className="grid grid-cols-4 gap-2">
+              {[["elite", "Élite"], ["rx", "RX"], ["inter", "Inter"], ["fitness", "Fitness"]].map(([v, l]) => (
                 <label key={v} className="cursor-pointer">
-                  <input type="radio" name="division" value={v} defaultChecked={i === 0} className="peer sr-only" />
+                  <input type="radio" name="division" value={v} defaultChecked={v === "rx"} className="peer sr-only" />
                   <span className="flex justify-center rounded-xl border border-line bg-panel-2 py-2.5 text-sm font-semibold text-muted transition peer-checked:border-lime peer-checked:bg-lime peer-checked:text-ink">{l}</span>
                 </label>
               ))}

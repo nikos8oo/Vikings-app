@@ -3,21 +3,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { getMaxes, getMovementMap, leaderboard } from "@/lib/data";
+import { computeLevel, getMaxes, getMovementMap, getResults, leaderboard } from "@/lib/data";
 import { fmtDate, fmtScore, fmtTime, todayParis } from "@/lib/format";
-import { anchorsFor, scoreFrom } from "@/lib/scoring";
+import { anchorsFor, scoreFrom, tierOf } from "@/lib/scoring";
 import { requireMe } from "@/lib/session";
 import type { Result, Workout } from "@/lib/types";
 import { ScoreForm } from "@/components/ScoreForm";
 import { StructuredLog } from "@/components/StructuredLog";
 import { canSeeWorkout } from "@/lib/tracks";
 import { blockStyle, colorHex } from "@/lib/colors";
-import { formatLabel, loadFor, setsText, type Rx } from "@/lib/prescription";
+import { describe, formatLabel, hasLevels, LEVELS, loadFor, rxForLevel, setsText, type Rx } from "@/lib/prescription";
 import { DeleteResult } from "@/components/DeleteButton";
 import { Empty, ScoreBadge, SectionTitle, SourceTag } from "@/components/ui";
 import { Leaderboard } from "./Leaderboard";
 
-type P = { params: Promise<{ id: string }> };
+type P = { params: Promise<{ id: string }>; searchParams?: Promise<{ lvl?: string }> };
 
 async function getWorkout(id: string) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
@@ -29,8 +29,9 @@ export async function generateMetadata({ params }: P): Promise<Metadata> {
   return { title: (await getWorkout((await params).id))?.title ?? "Séance" };
 }
 
-export default async function WorkoutPage({ params }: P) {
+export default async function WorkoutPage({ params, searchParams }: P) {
   const { id } = await params;
+  const sp = (await searchParams) ?? {};
   const me = await requireMe();
   const w = await getWorkout(id);
   if (!w || !canSeeWorkout(me, w)) notFound();
@@ -41,11 +42,20 @@ export default async function WorkoutPage({ params }: P) {
   ]);
   const mine = (mineRes.data ?? []) as Result[];
   const rx: Rx | null = w.format ? { format: w.format, items: w.items ?? [], rounds: w.rounds, duration_s: w.duration_s, interval_s: w.interval_s, rep_scheme: w.rep_scheme, emom_mode: w.emom_mode, time_cap_s: w.time_cap_s, variant: w.variant ?? null, parts: w.parts ?? null } : null;
-  const maxes = rx ? await getMaxes(me.id, rx.items.map((i) => i.mv)) : {};
-  const names = Object.fromEntries([...mmap.values()].filter((m) => w.movements.includes(m.id)).map((m) => [m.id, m.name]));
+  // Catégorie affichée : choisie, sinon celle du niveau de l'athlète
+  const leveled = !!rx && hasLevels(rx);
+  let lvl = LEVELS.some(([k]) => k === sp.lvl) ? sp.lvl! : "rx";
+  if (leveled && !sp.lvl) {
+    const g = (await computeLevel(me, await getResults(me.id))).global;
+    const t = g != null ? tierOf(g).key : null;
+    lvl = t === "games" || t === "elite" ? "elite" : t === "inter" ? "inter" : t === "fitness" ? "fitness" : "rx";
+  }
+  const lrx = rx ? rxForLevel(rx, lvl) : null;
+  const maxes = rx ? await getMaxes(me.id, [...new Set([...rx.items, ...lrx!.items].map((i) => i.mv))]) : {};
+  const names = Object.fromEntries([...mmap.values()].map((m) => [m.id, m.name]));
   const mine_kg = (it: Rx["items"][number]) => loadFor(it, me.sex, maxes[it.mv]);
   const anchors = anchorsFor(w, me.sex);
-  const bestRx = mine.filter((r) => r.division === "rx" && !r.capped)
+  const bestRx = mine.filter((r) => (r.division === "rx" || r.division === "elite") && !r.capped)
     .reduce<number | null>((b, r) => (b == null || (w.better === "higher" ? Number(r.value) > b : Number(r.value) < b) ? Number(r.value) : b), null);
   const score = w.counts_in_level && bestRx != null ? scoreFrom(bestRx, anchors, w.better) : null;
   const fmt = (r: { value: number; capped: boolean }) => (w.score_type === "none" ? "Fait ✓" : fmtScore(Number(r.value), w.score_type, { rpr: w.reps_per_round, capped: r.capped }));
@@ -73,11 +83,16 @@ export default async function WorkoutPage({ params }: P) {
             ) : rx ? (
               <div className="grid gap-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{formatLabel(rx)}{w.block ? ` · Partie ${w.block}` : ""}</p>
-                <p className="whitespace-pre-line text-[16px] leading-relaxed text-fog">{w.description}</p>
-                {rx.items.some((it) => it.pct != null || it.sets?.some((x) => x.pct != null)) && (
+                {leveled && (
+                  <div className="seg w-full">
+                    {LEVELS.map(([k, l]) => <Link key={k} href={`/prog/${w.id}?lvl=${k}`} scroll={false} aria-pressed={lvl === k} className="seg-btn py-1.5 text-[13px]">{l}</Link>)}
+                  </div>
+                )}
+                <p className="whitespace-pre-line text-[16px] leading-relaxed text-fog">{leveled && lvl !== "rx" ? describe(lrx!, (mid) => names[mid] ?? mid) : w.description}</p>
+                {lrx!.items.some((it) => it.pct != null || it.sets?.some((x) => x.pct != null)) && (
                   <div className="ios-group">
                     <p className="px-4 pt-3 text-[12px] text-muted">Tes charges</p>
-                    {rx.items.map((it) => (
+                    {lrx!.items.map((it) => (
                       <div key={it.mv} className="ios-row min-h-0 justify-between py-2.5 text-[14px]">
                         <span className="truncate">{names[it.mv] ?? it.mv}</span>
                         <span className="shrink-0 text-right tabular-nums text-fog">
@@ -87,7 +102,7 @@ export default async function WorkoutPage({ params }: P) {
                         </span>
                       </div>
                     ))}
-                    {rx.items.some((it) => !maxes[it.mv] && (it.pct != null || it.sets?.some((x) => x.pct != null))) && (
+                    {lrx!.items.some((it) => !maxes[it.mv] && (it.pct != null || it.sets?.some((x) => x.pct != null))) && (
                       <p className="px-4 pb-3 text-[12px] text-dim">Enregistre ton max sur ce mouvement (onglet Perfs) pour voir tes charges en kg.</p>
                     )}
                   </div>
@@ -123,7 +138,7 @@ export default async function WorkoutPage({ params }: P) {
           {!w.video_url && (w.score_type !== "none" || mine.length === 0 || rx) ? (
             <section className="rise rise-1 card p-5">
               <SectionTitle>Mon score</SectionTitle>
-              {rx ? <StructuredLog workoutId={w.id} rx={rx} sex={me.sex} maxes={maxes} names={names} rpr={w.reps_per_round} today={todayParis()} />
+              {rx ? <StructuredLog workoutId={w.id} rx={rx} level={lvl} sex={me.sex} maxes={maxes} names={names} rpr={w.reps_per_round} today={todayParis()} />
                 : <ScoreForm mode="workout" id={w.id} scoreType={w.score_type} rpr={w.reps_per_round} timeCap={w.time_cap_s} today={todayParis()} />}
             </section>
           ) : null}

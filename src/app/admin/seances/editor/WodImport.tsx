@@ -116,6 +116,11 @@ export function WodImport({ movements, onApply }: { movements: Mv[]; onApply: (r
                     <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-dim">{l.raw}</span>
                     <button type="button" onClick={() => setSkip(skip.map((v, k) => (k === i ? !v : v)))} className="text-[12px] text-muted hover:text-fog">{skip[i] ? "Garder" : "Ignorer"}</button>
                   </div>
+                  {!skip[i] && l.adapt && (
+                    <p className="pl-4 text-[11px] text-muted">
+                      {(["elite", "inter", "fitness"] as const).filter((k) => l.adapt?.[k]).map((k) => `${k === "elite" ? "Élite" : k === "inter" ? "Inter" : "Fitness"} : ${l.adapt![k]}`).join(" · ")}
+                    </p>
+                  )}
                   {!skip[i] && (
                     <div className="flex items-center gap-2 pl-4">
                       <select value={pick[i] ?? ""} onChange={(e) => setPick(pick.map((v, k) => (k === i ? e.target.value : v)))}

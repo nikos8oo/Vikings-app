@@ -32,7 +32,41 @@ export type Item = {
   video?: string | null;      // lien YouTube de démo
   phase?: "buy_in" | "buy_out" | null; // fait une seule fois, avant / après les tours
   part?: number | null;       // séance en plusieurs parties : n° de partie (1 par défaut)
+  levels?: Partial<Record<AdaptLevel, LevelRx>> | null; // adaptations Élite / Inter / Fitness (RX = la prescription de base)
 };
+
+/** Catégories de score (et d'adaptation) : RX est la prescription écrite. */
+export const LEVELS = [["elite", "Élite"], ["rx", "RX"], ["inter", "Inter"], ["fitness", "Fitness"]] as const;
+export type Level = (typeof LEVELS)[number][0];
+export type AdaptLevel = Exclude<Level, "rx">;
+export const ADAPT_LEVELS: AdaptLevel[] = ["elite", "inter", "fitness"];
+/** Adaptation d'un mouvement : autre mouvement et/ou autre quantité et/ou autre charge (vide = comme RX). */
+export type LevelRx = { mv?: string | null; reps?: number | null; cal?: number | null; cal_f?: number | null; dist_m?: number | null; dist_f?: number | null; time_s?: number | null; kg_m?: number | null; kg_f?: number | null; pct?: number | null; note?: string | null };
+
+export const hasLevels = (rx: Pick<Rx, "items">) => rx.items.some((it) => it.levels && Object.values(it.levels).some((l) => l && Object.values(l).some((v) => v != null && v !== "")));
+
+/** La séance telle qu'elle se fait dans une catégorie : RX = tel quel ; sinon chaque adaptation remplace ce qu'elle précise. */
+export function rxForLevel(rx: Rx, level: string): Rx {
+  if (level === "rx" || !ADAPT_LEVELS.includes(level as AdaptLevel)) return rx;
+  return {
+    ...rx,
+    items: rx.items.map((it) => {
+      const a = it.levels?.[level as AdaptLevel];
+      if (!a) return it;
+      const o: Item = { ...it };
+      if (a.mv) o.mv = a.mv;
+      const qty = (["reps", "cal", "dist_m", "time_s"] as const).some((k) => a[k] != null);
+      if (qty) { o.reps = a.reps ?? null; o.cal = a.cal ?? null; o.cal_f = a.cal != null ? a.cal_f ?? null : null; o.dist_m = a.dist_m ?? null; o.dist_f = a.dist_m != null ? a.dist_f ?? null : null; o.time_s = a.time_s ?? null; }
+      const load = a.kg_m != null || a.kg_f != null || a.pct != null;
+      if (load) { o.kg_m = a.kg_m ?? null; o.kg_f = a.kg_f ?? null; o.pct = a.pct ?? null; }
+      if (a.mv && !load) { o.kg_m = null; o.kg_f = null; o.pct = null; } // autre mouvement : la charge RX ne s'applique plus
+      if (o.sets?.length && (a.reps != null || load)) o.sets = o.sets.map((st) => ({ reps: a.reps ?? st.reps, pct: load ? a.pct ?? null : st.pct, kg_m: load ? a.kg_m ?? null : st.kg_m, kg_f: load ? a.kg_f ?? null : st.kg_f }));
+      if (a.note) o.note = [it.note, a.note].filter(Boolean).join(" · ");
+      o.levels = null;
+      return o;
+    }),
+  };
+}
 
 /** Une partie d'une séance enchaînée (ex. 6 tours, puis 3 tours). rest_s = repos avant la partie suivante (null = directement). */
 export type Part = { rounds: number; rest_s?: number | null };
@@ -348,7 +382,7 @@ export function computeVolume(rx: Rx, p: Performance): VolumeRow[] {
   const kgOf = (it: Item) => {
     const m = mod(it);
     if (m?.kg != null) return Number(m.kg);
-    return p.division === "rx" ? loadFor(it, p.sex, maxOf(it)) : null;
+    return loadFor(it, p.sex, maxOf(it));
   };
   // quantités d'un round ; une modification de l'athlète remplace la quantité principale
   // schéma de reps ; sur un AMRAP / AMReps il se prolonge (3-6-9 → 12, 15…)
@@ -515,6 +549,23 @@ export function sanitizeRx(raw: unknown): Rx | string {
     video: youtubeId(i.video) ? String(i.video).trim().slice(0, 300) : null,
     phase: i.phase === "buy_in" || i.phase === "buy_out" ? i.phase : null,
     part: pos(i.part, 10),
+    levels: (() => {
+      const lv = (i as Item).levels;
+      if (!lv || typeof lv !== "object") return null;
+      const out: Partial<Record<AdaptLevel, LevelRx>> = {};
+      for (const k of ADAPT_LEVELS) {
+        const a = lv[k];
+        if (!a || typeof a !== "object") continue;
+        const c: LevelRx = {
+          mv: typeof a.mv === "string" && a.mv ? a.mv : null,
+          reps: pos(a.reps, 10000), cal: pos(a.cal, 10000), cal_f: pos(a.cal_f, 10000), dist_m: pos(a.dist_m), dist_f: pos(a.dist_f), time_s: pos(a.time_s, 36000),
+          kg_m: pos(a.kg_m, 500), kg_f: pos(a.kg_f, 500), pct: pos(a.pct, 150),
+          note: typeof a.note === "string" && a.note.trim() ? a.note.trim().slice(0, 80) : null,
+        };
+        if (Object.values(c).some((v) => v != null)) out[k] = c;
+      }
+      return Object.keys(out).length ? out : null;
+    })(),
   }));
   if (!items.length) return "Ajoute au moins un mouvement.";
   const f = r.format;

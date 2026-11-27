@@ -4,7 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { saveWorkout } from "@/app/actions/admin";
 import { FormMessage, Submit } from "@/components/forms";
 import { MODALITY_LABEL, MODALITY_ORDER, PATTERN_LABEL, PATTERNS_OF, fmtTime, parseTime } from "@/lib/format";
-import { computeVolume, describe, FORMATS, RESULT_BY, repsPerRound, TEMPLATES, templateOf, partOf, type ResultBy, type Template, type Format, type Item, type Rx, type SetRx, youtubeId } from "@/lib/prescription";
+import { computeVolume, describe, FORMATS, RESULT_BY, repsPerRound, TEMPLATES, templateOf, partOf, ADAPT_LEVELS, type AdaptLevel, type LevelRx, type ResultBy, type Template, type Format, type Item, type Rx, type SetRx, youtubeId } from "@/lib/prescription";
 import { SUBTRACKS } from "@/lib/tracks";
 import { BLOCK_COLORS, blockStyle } from "@/lib/colors";
 import type { Workout } from "@/lib/types";
@@ -236,7 +236,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
           <h2 className="ios-head">Mouvements</h2>
           <div className="grid gap-3">
             {rx.items.map((it, i) => (
-              <ItemCard key={`${wk}-${i}-${it.mv}`} it={it} index={i} rx={rx} mv={mmap.get(it.mv)} setItem={setItem}
+              <ItemCard key={`${wk}-${i}-${it.mv}`} it={it} index={i} rx={rx} mv={mmap.get(it.mv)} movements={movements} setItem={setItem}
                 onRemove={() => patch({ items: rx.items.filter((_, k) => k !== i) })}
                 onMove={(d) => { const a = [...rx.items]; const j = i + d; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; patch({ items: a }); }} />
             ))}
@@ -417,8 +417,8 @@ function FormatParams({ rx, tpl, patch }: { rx: Rx; tpl: Template; patch: (p: Pa
   );
 }
 
-function ItemCard({ it, index, rx, mv, setItem, onRemove, onMove }: {
-  it: Item; index: number; rx: Rx; mv?: Mv; setItem: (i: number, p: Partial<Item>) => void; onRemove: () => void; onMove: (d: number) => void;
+function ItemCard({ it, index, rx, mv, movements, setItem, onRemove, onMove }: {
+  it: Item; index: number; rx: Rx; mv?: Mv; movements: Mv[]; setItem: (i: number, p: Partial<Item>) => void; onRemove: () => void; onMove: (d: number) => void;
 }) {
   const isSets = rx.format === "sets" || rx.format === "max";
   const [pctMode, setPctMode] = useState<boolean>(() => (isSets ? (it.sets ?? []).some((s) => s.pct != null) || !(it.sets ?? []).some((s) => s.kg_m != null) : it.pct != null));
@@ -567,6 +567,7 @@ function ItemCard({ it, index, rx, mv, setItem, onRemove, onMove }: {
           )}
         </>
       )}
+      <Adaptations it={it} isSets={isSets} pctMode={pctMode} movements={movements} up={up} />
       <div className="ios-row">
         <span className="ios-label text-muted">Vidéo</span>
         <input value={it.video ?? ""} placeholder="Lien YouTube (optionnel)" inputMode="url" onChange={(e) => up({ video: e.target.value.trim() || null })} className="ios-input" />
@@ -658,5 +659,76 @@ function Toggle({ name, checked, defaultChecked, onChange }: { name?: string; ch
       <span className="h-[31px] w-[51px] rounded-full bg-panel-3 transition peer-checked:bg-[#34c759]" />
       <span className="pointer-events-none absolute left-[2px] top-[2px] h-[27px] w-[27px] rounded-full bg-white shadow transition peer-checked:translate-x-5" />
     </span>
+  );
+}
+
+/* ---------- Adaptations Élite / Inter / Fitness (repliées par défaut) ---------- */
+const LV_LABEL: Record<AdaptLevel, string> = { elite: "Élite", inter: "Inter", fitness: "Fitness" };
+function Adaptations({ it, isSets, pctMode, movements, up }: { it: Item; isSets: boolean; pctMode: boolean; movements: Mv[]; up: (p: Partial<Item>) => void }) {
+  const set = ADAPT_LEVELS.filter((k) => it.levels?.[k] && Object.values(it.levels[k]!).some((v) => v != null && v !== ""));
+  const [open, setOpen] = useState(set.length > 0);
+  const sorted = useMemo(() => [...movements].sort((a, b) => a.name.localeCompare(b.name, "fr")), [movements]);
+  // unité principale de la version RX
+  const unit = isSets ? "reps" : it.cal != null || it.cal_f != null ? "cal" : it.dist_m != null || it.dist_f != null ? "dist" : it.time_s != null ? "time" : "reps";
+  const usePct = isSets ? pctMode : it.pct != null;
+  const lv = (k: AdaptLevel) => it.levels?.[k] ?? {};
+  const setLv = (k: AdaptLevel, p: Partial<LevelRx>) => up({ levels: { ...(it.levels ?? {}), [k]: { ...lv(k), ...p } } });
+  const hf = unit === "cal" || unit === "dist";
+  const showLoad = isSets || it.kg_m != null || it.kg_f != null || it.pct != null || ADAPT_LEVELS.some((k) => lv(k).kg_m != null || lv(k).pct != null);
+  const cols = `64px minmax(0,1fr) ${hf ? "120px" : "76px"}${showLoad ? " 120px" : ""}`;
+  const rxF = unit === "cal" ? it.cal_f : unit === "dist" ? it.dist_f : null;
+  const rxQty = unit === "cal" ? it.cal : unit === "dist" ? it.dist_m : unit === "time" ? it.time_s : isSets ? it.sets?.[0]?.reps : it.reps;
+  return (
+    <div className="border-t border-line">
+      <button type="button" onClick={() => setOpen(!open)} className="ios-row w-full text-left">
+        <span className="ios-label text-muted">Adaptations</span>
+        <span className="flex flex-1 justify-end gap-1.5">
+          {ADAPT_LEVELS.map((k) => (
+            <span key={k} className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${set.includes(k) ? "bg-bleu/15 text-bleu-2" : "text-dim"}`}>{LV_LABEL[k]}</span>
+          ))}
+        </span>
+        <span className={`text-dim transition ${open ? "rotate-90" : ""}`}>›</span>
+      </button>
+      {open && (
+        <div className="grid gap-1.5 px-4 pb-3">
+          <div className="grid items-center gap-2 text-[11px] text-dim" style={{ gridTemplateColumns: cols }}>
+            <span /><span>Mouvement</span><span className="text-center">{unit === "cal" ? "Cal H / F" : unit === "dist" ? "Mètres H / F" : unit === "time" ? "Temps" : "Reps"}</span>
+            {showLoad && <span className="text-center">{usePct ? "% du max" : "Charge H / F"}</span>}
+          </div>
+          {ADAPT_LEVELS.map((k) => {
+            const a = lv(k);
+            const q = unit === "cal" ? a.cal : unit === "dist" ? a.dist_m : unit === "time" ? a.time_s : a.reps;
+            const setQ = (v: number | null) => setLv(k, unit === "cal" ? { cal: v } : unit === "dist" ? { dist_m: v } : unit === "time" ? { time_s: v } : { reps: v });
+            return (
+              <div key={k} className="grid items-center gap-2" style={{ gridTemplateColumns: cols }}>
+                <span className={`text-[13px] font-semibold ${set.includes(k) ? "text-fog" : "text-muted"}`}>{LV_LABEL[k]}</span>
+                <select value={a.mv ?? ""} onChange={(e) => setLv(k, { mv: e.target.value || null })} className="ios-cell min-w-0 truncate text-left">
+                  <option value="">Même mouvement</option>
+                  {sorted.filter((m) => m.id !== it.mv).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+                {unit === "time"
+                  ? <input key={`t-${k}`} defaultValue={q ? fmtTime(q) : ""} placeholder={rxQty ? fmtTime(rxQty) : "mm:ss"} onChange={(e) => setQ(e.target.value.trim() ? parseTime(e.target.value) : null)} className="ios-cell" />
+                  : hf ? (
+                    <span className="flex items-center gap-1">
+                      <input value={show(q)} inputMode="decimal" placeholder={rxQty != null ? show(rxQty) : "H"} onChange={(e) => setQ(num(e.target.value))} className="ios-cell min-w-0" />
+                      <input value={show(unit === "cal" ? a.cal_f : a.dist_f)} inputMode="decimal" placeholder={rxF != null ? show(rxF) : "F"} onChange={(e) => setLv(k, unit === "cal" ? { cal_f: num(e.target.value) } : { dist_f: num(e.target.value) })} className="ios-cell min-w-0" />
+                    </span>
+                  )
+                  : <input value={show(q)} inputMode="decimal" placeholder={rxQty != null ? show(rxQty) : "="} onChange={(e) => setQ(num(e.target.value))} className="ios-cell" />}
+                {!showLoad ? null : usePct
+                  ? <input value={show(a.pct)} inputMode="decimal" placeholder={show(isSets ? it.sets?.[0]?.pct : it.pct) || "%"} onChange={(e) => setLv(k, { pct: num(e.target.value), kg_m: null, kg_f: null })} className="ios-cell" />
+                  : (
+                    <span className="flex items-center gap-1">
+                      <input value={show(a.kg_m)} inputMode="decimal" placeholder={show(isSets ? it.sets?.[0]?.kg_m : it.kg_m) || "H"} onChange={(e) => setLv(k, { kg_m: num(e.target.value), pct: null })} className="ios-cell min-w-0" />
+                      <input value={show(a.kg_f)} inputMode="decimal" placeholder={show(isSets ? it.sets?.[0]?.kg_f : it.kg_f) || "F"} onChange={(e) => setLv(k, { kg_f: num(e.target.value), pct: null })} className="ios-cell min-w-0" />
+                    </span>
+                  )}
+              </div>
+            );
+          })}
+          <p className="pt-1 text-[11px] text-dim">Laisse vide ce qui ne change pas : la case grisée montre la valeur RX.</p>
+        </div>
+      )}
+    </div>
   );
 }

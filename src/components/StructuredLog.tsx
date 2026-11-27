@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { addStructuredResult, type ResultState } from "@/app/actions/results";
-import { FORMATS, loadFor, primaryUnit, qtyFor, UNIT_LABEL, type Detail, type Rx } from "@/lib/prescription";
+import { FORMATS, hasLevels, LEVELS, loadFor, primaryUnit, qtyFor, rxForLevel, UNIT_LABEL, type Detail, type Rx } from "@/lib/prescription";
 import type { Sex } from "@/lib/types";
 import { FormMessage, Submit } from "./forms";
 
@@ -10,14 +10,16 @@ type SetRow = { mv: string; reps: string; kg: string };
 const s = (v: number | null | undefined) => (v == null ? "" : String(v).replace(".", ","));
 const n = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")));
 
-export function StructuredLog({ workoutId, rx, sex, maxes, names, rpr, today }: {
-  workoutId: string; rx: Rx; sex: Sex; maxes: Record<string, number>; names: Record<string, string>; rpr: number | null; today: string;
+export function StructuredLog({ workoutId, rx: baseRx, sex, maxes, names, rpr, today, level = "rx" }: {
+  workoutId: string; rx: Rx; sex: Sex; maxes: Record<string, number>; names: Record<string, string>; rpr: number | null; today: string; level?: string;
 }) {
+  const [division, setDivision] = useState(level);
+  useEffect(() => setDivision(level), [level]);
+  const rx = useMemo(() => rxForLevel(baseRx, division), [baseRx, division]);
   const [state, action] = useActionState<ResultState, FormData>(addStructuredResult, null);
   const isSets = rx.format === "sets" || rx.format === "max";
   const score = FORMATS[rx.format].score;
   const [written, setWritten] = useState(true);
-  const [division, setDivision] = useState("rx");
   const [capped, setCapped] = useState(false);
   const [more, setMore] = useState(false);
 
@@ -27,6 +29,11 @@ export function StructuredLog({ workoutId, rx, sex, maxes, names, rpr, today }: 
   const [mods, setMods] = useState<Record<string, { qty: string; kg: string }>>(() =>
     Object.fromEntries(rx.items.map((it) => [it.mv, { qty: s(qtyFor(it, sex)), kg: s(loadFor(it, sex, maxes[it.mv])) }])));
   useEffect(() => { if (state?.ok) { setWritten(true); setSets(prescribed); setCapped(false); } }, [state, prescribed]);
+  // changement de catégorie : on repart de la séance de cette catégorie
+  useEffect(() => {
+    setSets(prescribed);
+    setMods(Object.fromEntries(rx.items.map((it) => [it.mv, { qty: s(qtyFor(it, sex)), kg: s(loadFor(it, sex, maxes[it.mv])) }])));
+  }, [rx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const maxMode = rx.format === "max";
   const detail: Detail | null = maxMode
@@ -135,9 +142,9 @@ export function StructuredLog({ workoutId, rx, sex, maxes, names, rpr, today }: 
         </div>
       )}
 
-      {!isSets && (
+      {(!isSets || hasLevels(baseRx)) && (
         <div className="seg w-full">
-          {[["rx", "RX"], ["scaled", "Scaled"], ["foundation", "Foundation"]].map(([v, l]) => (
+          {LEVELS.map(([v, l]) => (
             <button key={v} type="button" aria-pressed={division === v} onClick={() => setDivision(v)} className="seg-btn py-2">{l}</button>
           ))}
         </div>

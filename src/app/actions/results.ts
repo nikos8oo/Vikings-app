@@ -6,8 +6,8 @@ import { parseNum, parseTime, todayParis } from "@/lib/format";
 import { requireMe } from "@/lib/session";
 import { getMaxes } from "@/lib/data";
 import { canSeeWorkout } from "@/lib/tracks";
-import { computeVolume, FORMATS, heaviest, type Detail, type Rx } from "@/lib/prescription";
-import type { Metric, ScoreType, Workout } from "@/lib/types";
+import { computeVolume, FORMATS, heaviest, rxForLevel, type Detail, type Rx } from "@/lib/prescription";
+import type { Division, Metric, ScoreType, Workout } from "@/lib/types";
 
 export type ResultState = { error?: string; ok?: string } | null;
 
@@ -55,7 +55,7 @@ export async function addWorkoutResult(_: ResultState, f: FormData): Promise<Res
   if (w.score_type === "none") {
     // simple validation de séance
   } else if (value == null || (value <= 0 && !capped)) return { error: "Score invalide." };
-  const division = ["rx", "scaled", "foundation"].includes(String(f.get("division"))) ? String(f.get("division")) : "rx";
+  const division = ["elite", "rx", "inter", "fitness"].includes(String(f.get("division"))) ? String(f.get("division")) : "rx";
   const c = common(f);
   const { error } = await db().from("results").insert({
     athlete_id: me.id, workout_id, value: value ?? 0, division, capped, ...c, bodyweight_kg: me.bodyweight_kg,
@@ -83,14 +83,14 @@ export async function addStructuredResult(_: ResultState, f: FormData): Promise<
   if (!w || !w.published || !w.format || !canSeeWorkout(me, w)) return { error: "Séance introuvable." };
   const rx: Rx = { format: w.format, items: w.items ?? [], rounds: w.rounds, duration_s: w.duration_s, interval_s: w.interval_s, rep_scheme: w.rep_scheme, emom_mode: w.emom_mode, time_cap_s: w.time_cap_s, variant: w.variant ?? null, parts: w.parts ?? null };
   const as_written = f.get("as_written") !== "off";
-  const division = ["rx", "scaled", "foundation"].includes(String(f.get("division"))) ? (String(f.get("division")) as "rx") : "rx";
+  const division = ["elite", "rx", "inter", "fitness"].includes(String(f.get("division"))) ? (String(f.get("division")) as Division) : "rx";
 
   // Détail saisi (séries réelles / modifications), nettoyé
   let detail: Detail | null = null;
   try {
     const raw = JSON.parse(String(f.get("detail") || "null")) as Detail | null;
     if (raw) {
-      const ids = new Set(rx.items.map((i) => i.mv));
+      const ids = new Set(rx.items.flatMap((i) => [i.mv, ...Object.values(i.levels ?? {}).map((l) => l?.mv).filter((x): x is string => !!x)]));
       const pos = (v: unknown, max: number) => { const x = Number(v); return Number.isFinite(x) && x >= 0 && x <= max ? x : null; };
       detail = {
         sets: (raw.sets ?? []).filter((s) => ids.has(s.mv)).slice(0, 60).map((s) => ({ mv: s.mv, reps: pos(s.reps, 500) ?? 0, kg: pos(s.kg, 600) })).filter((s) => s.reps > 0),
@@ -104,18 +104,19 @@ export async function addStructuredResult(_: ResultState, f: FormData): Promise<
   if (isSets && !as_written && !detail?.sets?.length) return { error: "Ajoute au moins une série." };
   if (as_written && rx.format !== "max") detail = null;
 
-  const maxes = await getMaxes(me.id, rx.items.map((i) => i.mv));
+  const lrx = rxForLevel(rx, division); // la séance telle que faite dans sa catégorie
+  const maxes = await getMaxes(me.id, [...new Set([...rx.items, ...lrx.items].map((i) => i.mv))]);
   const score = FORMATS[rx.format].score;
   let value = 0;
   let capped = false;
-  if (isSets) value = heaviest(rx, { sex: me.sex, maxes, detail }) ?? 0;
+  if (isSets) value = heaviest(lrx, { sex: me.sex, maxes, detail }) ?? 0;
   else if (score !== "none") {
     capped = f.get("capped") === "on" && score === "time";
     const v = capped ? parseNum(String(f.get("cap_reps") ?? "")) : readValue(score as ScoreType, f, w.reps_per_round);
     if (v == null || v <= 0) return { error: score === "time" && !capped ? "Entre ton temps au format mm:ss." : "Score invalide." };
     value = v;
   }
-  const volume = computeVolume(rx, { sex: me.sex, division, value, capped, maxes, detail });
+  const volume = computeVolume(lrx, { sex: me.sex, division, value, capped, maxes, detail });
   const c = common(f);
   if (c.performed_on > todayParis()) return { error: "La date ne peut pas être dans le futur." };
 

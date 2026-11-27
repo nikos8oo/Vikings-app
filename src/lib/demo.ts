@@ -267,7 +267,7 @@ export function buildDemoResults(o: {
         if (!id) return;
         const sex = a.sex as Sex;
         const pace = 1.35 - a.level * 0.5; // plus bas = plus rapide
-        const division = a.level < 0.5 && r() < 0.5 ? "scaled" : "rx";
+        const division = a.level < 0.5 && r() < 0.5 ? (a.level < 0.3 ? "fitness" : "inter") : a.level > 0.85 && r() < 0.5 ? "elite" : "rx";
         const full = computeVolume(rx, { sex, division: "rx", value: 0, maxes });
         const work = full.reduce((s, v) => s + v.reps * 3.2 + v.cal * 4 + v.m * 0.3 + v.s, 0);
         const score = FORMATS[rx.format].score;

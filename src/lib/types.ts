@@ -5,7 +5,7 @@ export type Role = "athlete" | "coach" | "admin";
 export type Metric = "load" | "reps" | "time" | "distance" | "calories" | "height";
 export type Better = "higher" | "lower";
 export type Anchors = Record<"100" | "90" | "75" | "60" | "40", number>;
-export type Division = "rx" | "scaled" | "foundation";
+export type Division = "elite" | "rx" | "inter" | "fitness";
 export type Source = "vikings" | "competition" | "affiliates" | "qualif" | "benchmark";
 export type { Subtrack } from "./tracks";
 export type ScoreType = "time" | "rounds_reps" | "reps" | "load" | "calories" | "distance" | "none";

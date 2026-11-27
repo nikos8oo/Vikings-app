@@ -35,7 +35,7 @@ export function bests(results: Result[], movements: Map<string, Movement>, worko
       if (!cur || better(Number(r.value), Number(cur.value), m.better)) mov.set(r.movement_id, r);
     } else if (r.workout_id) {
       const w = workouts.get(r.workout_id);
-      if (!w || r.division !== "rx" || r.capped) continue;
+      if (!w || !(r.division === "rx" || r.division === "elite") || r.capped) continue;
       const cur = wod.get(r.workout_id);
       if (!cur || better(Number(r.value), Number(cur.value), w.better)) wod.set(r.workout_id, r);
     }
@@ -139,7 +139,7 @@ export async function leaderboard(w: Workout): Promise<LeaderRow[]> {
     athlete_id: string; value: number; division: string; capped: boolean; performed_on: string;
     athletes: { first_name: string; last_name: string; sex: Sex; boxes: { name: string } | null };
   }[];
-  const divRank: Record<string, number> = { rx: 0, scaled: 1, foundation: 2 };
+  const divRank: Record<string, number> = { elite: 0, rx: 1, inter: 2, fitness: 3 };
   // garder la meilleure perf de chaque athlète
   const best = new Map<string, (typeof rows)[number]>();
   const cmp = (a: (typeof rows)[number], b: (typeof rows)[number]) => {

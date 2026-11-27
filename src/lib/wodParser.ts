@@ -3,11 +3,11 @@
  * Analyse prudente : chaque ligne reçoit un niveau de confiance, rien n'est inventé.
  * Ce qui n'est pas un mouvement (consignes, repos, objectifs) part dans les notes coach.
  */
-import type { Item, Rx, SetRx } from "./prescription";
+import type { AdaptLevel, Item, LevelRx, Rx, SetRx } from "./prescription";
 
 export type MvLite = { id: string; name: string; category?: string };
 export type Confidence = "ok" | "check" | "unknown";
-export type ParsedLine = { raw: string; item: Item; mv: string | null; confidence: Confidence; candidates: { id: string; name: string; score: number }[] };
+export type ParsedLine = { raw: string; item: Item; mv: string | null; confidence: Confidence; candidates: { id: string; name: string; score: number }[]; adapt?: Partial<Record<AdaptLevel, string>> };
 export type ParseResult = { rx: Rx; lines: ParsedLine[]; notes: string[]; title: string | null; summary: string; warnings: string[] };
 
 /* ---------- Normalisation ---------- */
@@ -205,7 +205,16 @@ export function parseWod(text: string, mvs: MvLite[]): ParseResult {
   const partsDef: { rounds: number; rest_s: number | null }[] = [];
   let pendingRest: number | null = null;
 
+  const adaptLines: { level: AdaptLevel; text: string }[] = [];
   rawLines.forEach((raw, i) => {
+    // « Fitness : 10 knees push up / 10 sit up » → adaptations par mouvement
+    const ad = raw.match(/^(elite|rx\s*\+|inter(?:m[ée]diaire)?|scaled|fitness|foundation|d[ée]butant)\s*:\s*(.+)$/i);
+    if (ad) {
+      const k = ad[1].toLowerCase().replace(/\s/g, "");
+      const level: AdaptLevel = k === "elite" || k === "rx+" ? "elite" : k.startsWith("inter") || k === "scaled" ? "inter" : "fitness";
+      adaptLines.push({ level, text: ad[2] });
+      return;
+    }
     // Séparateurs entre parties : « --- directly into --- », « puis », « Rest 2' »…
     if (/^[-–—=_*\s]*(?:directly into|directement|enchain\w*|then|puis|into|-{2,}|—{1,})[-–—=_*\s]*$/i.test(raw)) { pendingRest = null; return; }
     const restM = raw.match(new RegExp(String.raw`^(?:rest|repos|recup\w*)\s*:?\s*${DUR}\s*(?:rest|repos)?$|^${DUR}\s*(?:de\s*)?(?:rest|repos|recup\w*)$`, "i"));
@@ -257,6 +266,27 @@ export function parseWod(text: string, mvs: MvLite[]): ParseResult {
     if (/\brest\b|\brepos\b/i.test(parsed.rest) && conf === "unknown") { notes.push(raw); return; }
     push({ raw, item, mv: item.mv || null, confidence: conf, candidates: c });
   });
+
+  // Adaptations : chaque morceau « / » correspond au mouvement de même rang (ou au mouvement qu'il nomme)
+  for (const { level, text } of adaptLines) {
+    const chunks = text.split(/\s+[\/|+]\s+|\s*;\s*/).map((c) => c.trim()).filter(Boolean);
+    chunks.forEach((chunk, j) => {
+      const pq = readQuantity(chunk) ?? extras(chunk);
+      const c = matchMovement(pq.rest, idx);
+      const same = c[0] ? lines.findIndex((l) => l.mv === c[0].id) : -1;
+      const line = lines[same >= 0 ? same : j];
+      if (!line) return;
+      const q = pq.q;
+      const a: LevelRx = {
+        mv: c[0] && c[0].score >= 0.6 && c[0].id !== line.mv ? c[0].id : null,
+        reps: q.reps ?? null, cal: q.cal ?? null, cal_f: q.cal_f ?? null, dist_m: q.dist_m ?? null, dist_f: q.dist_f ?? null, time_s: q.time_s ?? null,
+        kg_m: q.kg_m ?? null, kg_f: q.kg_f ?? null, pct: q.pct ?? null,
+      };
+      if (!Object.values(a).some((v) => v != null)) return;
+      line.item.levels = { ...(line.item.levels ?? {}), [level]: a };
+      line.adapt = { ...(line.adapt ?? {}), [level]: chunk };
+    });
+  }
 
   // Format final
   let rx: Rx = { format: "for_time", items: [], rounds: null, duration_s: null, interval_s: null, rep_scheme: null, emom_mode: "all", time_cap_s: head.time_cap_s ?? null, variant: "for_time" };
