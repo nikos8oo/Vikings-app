@@ -53,23 +53,28 @@ export function DuplicateNextDay({ id, date }: { id: string; date: string }) {
 /* ---------- Glisser-déposer des blocs entre les jours ---------- */
 const DND = "text/va-block";
 
+/** Bloc déplaçable : on l'attrape n'importe où, la poignée apparaît au survol. */
 export function DragBlock({ id, children }: { id: string; children: React.ReactNode }) {
+  const [drag, setDrag] = useState(false);
   return (
-    <div draggable onDragStart={(e) => { e.dataTransfer.setData(DND, id); e.dataTransfer.effectAllowed = "move"; (e.currentTarget as HTMLElement).style.opacity = "0.4"; }}
-      onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = ""; }}
-      className="cursor-grab active:cursor-grabbing">
+    <div draggable
+      onDragStart={(e) => { e.dataTransfer.setData(DND, id); e.dataTransfer.effectAllowed = "move"; setTimeout(() => setDrag(true), 0); }}
+      onDragEnd={() => setDrag(false)}
+      className={`group/drag relative min-w-0 cursor-grab active:cursor-grabbing ${drag ? "opacity-30" : ""}`}>
+      <span aria-hidden className="pointer-events-none absolute right-1.5 top-1.5 z-10 rounded-md bg-canvas/80 px-1 text-[11px] leading-4 text-dim opacity-0 transition group-hover/drag:opacity-100">⠿</span>
       {children}
     </div>
   );
 }
 
+/** Jour qui accepte un bloc : surbrillance + emplacement « Déposer ici » pendant le survol. */
 export function DropDay({ date, className, children }: { date: string; className?: string; children: React.ReactNode }) {
   const router = useRouter();
   const [over, setOver] = useState(false);
   const [pending, start] = useTransition();
   return (
     <div
-      onDragOver={(e) => { if (e.dataTransfer.types.includes(DND)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setOver(true); } }}
+      onDragOver={(e) => { if (e.dataTransfer.types.includes(DND)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (!over) setOver(true); } }}
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(false); }}
       onDrop={(e) => {
         const id = e.dataTransfer.getData(DND);
@@ -78,8 +83,13 @@ export function DropDay({ date, className, children }: { date: string; className
         e.preventDefault();
         start(async () => { await moveWorkout(id, date); router.refresh(); });
       }}
-      className={`${className ?? ""} transition ${over ? "!border-bleu ring-2 ring-bleu/30" : ""} ${pending ? "opacity-60" : ""}`}>
+      className={`${className ?? ""} min-w-0 transition-colors ${over ? "!border-bleu !bg-bleu/[0.06]" : ""}`}>
       {children}
+      {(over || pending) && (
+        <div className="mx-1 mt-1 rounded-xl border-2 border-dashed border-bleu/60 py-3 text-center text-[12px] font-semibold text-bleu-2">
+          {pending ? "Déplacement…" : "Déposer ici"}
+        </div>
+      )}
     </div>
   );
 }
