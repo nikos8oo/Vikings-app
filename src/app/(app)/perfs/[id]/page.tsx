@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { communityRank, getMovementMap, getResults, movementVolume } from "@/lib/data";
-import { CATEGORY_LABEL, fmtDate, fmtMetric, fmtScore, fmtTime, todayParis } from "@/lib/format";
+import { MODALITY_LABEL, fmtDate, fmtMetric, fmtScore, fmtTime, todayParis } from "@/lib/format";
 import { formatLabel, type Format } from "@/lib/prescription";
 import type { ScoreType } from "@/lib/types";
 import { anchorsFor, nextTier, scoreFrom, tierOf } from "@/lib/scoring";
@@ -58,7 +58,7 @@ export default async function MovementPage({ params }: P) {
   return (
     <div className="grid gap-6">
       <div className="rise">
-        <Link href="/perfs" className="text-xs font-semibold text-muted">← {CATEGORY_LABEL[m.category]}</Link>
+        <Link href="/perfs" className="text-xs font-semibold text-muted">← {MODALITY_LABEL[m.modality] ?? "Perfs"}</Link>
         <h1 className="display mt-2 text-4xl text-fog">{m.name}</h1>
         <p className="mt-1 text-sm text-muted">{m.test_label}{m.equipment ? ` · ${m.equipment}` : ""}</p>
       </div>

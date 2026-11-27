@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
-import { CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/format";
+import { CATEGORY_LABEL, CATEGORY_ORDER, MODALITY_HINT, MODALITY_LABEL, MODALITY_ORDER } from "@/lib/format";
 import { tierOf } from "@/lib/scoring";
 
-type Item = { id: string; name: string; category: string; family: string | null; label: string | null; scored: boolean; best: string | null; score: number | null };
+type Item = { id: string; name: string; category: string; modality: string; family: string | null; label: string | null; scored: boolean; best: string | null; score: number | null };
 
 const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
@@ -17,10 +17,11 @@ export function MovementBrowser({ items }: { items: Item[] }) {
   const filtered = useMemo(() => {
     const n = norm(dq);
     return items.filter((i) =>
-      (cat === "all" || i.category === cat) && (!mine || i.best) &&
+      (cat === "all" || i.modality === cat) && (!mine || i.best) &&
       (!n || norm(i.name).includes(n) || norm(i.family ?? "").includes(n)));
   }, [items, dq, cat, mine]);
-  const groups = CATEGORY_ORDER.map((c) => ({ c, list: filtered.filter((i) => i.category === c) })).filter((g) => g.list.length);
+  const rank = (c: string) => { const k = CATEGORY_ORDER.indexOf(c); return k < 0 ? 99 : k; };
+  const groups = MODALITY_ORDER.map((c) => ({ c, list: filtered.filter((i) => i.modality === c).sort((a, b) => rank(a.category) - rank(b.category)) })).filter((g) => g.list.length);
   const done = items.filter((i) => i.best).length;
 
   return (
@@ -32,10 +33,10 @@ export function MovementBrowser({ items }: { items: Item[] }) {
         </div>
         <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5">
           <button onClick={() => setMine(!mine)} className={`chip shrink-0 ${mine ? "border-lime bg-lime text-ink" : ""}`}>Mes perfs · {done}</button>
-          {["all", ...CATEGORY_ORDER].map((c) => (
+          {["all", ...MODALITY_ORDER].map((c) => (
             <button key={c} onClick={() => setCat(c)}
               className={`chip shrink-0 ${cat === c ? "border-bleu bg-bleu text-white" : ""}`}>
-              {c === "all" ? "Tout" : CATEGORY_LABEL[c]}
+              {c === "all" ? "Tout" : MODALITY_LABEL[c]}
             </button>
           ))}
         </div>
@@ -44,7 +45,7 @@ export function MovementBrowser({ items }: { items: Item[] }) {
       <div className="mt-3 grid gap-7">
         {groups.map((g) => (
           <section key={g.c}>
-            <h2 className="kicker mb-2">{CATEGORY_LABEL[g.c]} <span className="text-dim">· {g.list.length}</span></h2>
+            <h2 className="kicker mb-2">{MODALITY_LABEL[g.c]} <span className="text-dim">· {g.list.length} · {MODALITY_HINT[g.c]}</span></h2>
             <ul className="card divide-y divide-line overflow-hidden">
               {g.list.map((i) => (
                 <li key={i.id}>
@@ -52,7 +53,7 @@ export function MovementBrowser({ items }: { items: Item[] }) {
                     <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i.scored ? "bg-lime" : "bg-transparent"}`} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-medium">{i.name}</span>
-                      <span className="block truncate text-xs text-dim">{i.label}</span>
+                      <span className="block truncate text-xs text-dim">{[CATEGORY_LABEL[i.category], i.label].filter(Boolean).join(" · ")}</span>
                     </span>
                     {i.best ? <span className="text-sm font-semibold tabular-nums text-fog">{i.best}</span> : <span className="text-xs text-dim">+ Ajouter</span>}
                     {i.score != null && (

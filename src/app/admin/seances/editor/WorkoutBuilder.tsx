@@ -3,13 +3,13 @@
 import { useActionState, useMemo, useState } from "react";
 import { saveWorkout } from "@/app/actions/admin";
 import { FormMessage, Submit } from "@/components/forms";
-import { CATEGORY_LABEL, fmtTime, parseTime } from "@/lib/format";
+import { MODALITY_LABEL, MODALITY_ORDER, fmtTime, parseTime } from "@/lib/format";
 import { computeVolume, describe, FORMATS, RESULT_BY, repsPerRound, TEMPLATES, templateOf, type ResultBy, type Template, type Format, type Item, type Rx, type SetRx } from "@/lib/prescription";
 import { SUBTRACKS } from "@/lib/tracks";
 import { BLOCK_COLORS, blockStyle } from "@/lib/colors";
 import type { Workout } from "@/lib/types";
 
-export type Mv = { id: string; name: string; category: string; metric: string };
+export type Mv = { id: string; name: string; category: string; metric: string; modality?: string };
 
 const SOURCES = [["competition", "Compétition"], ["affiliates", "Affiliates"], ["qualif", "Qualif"], ["benchmark", "Benchmark"]] as const;
 const BLOCKS = ["", "A", "B", "C", "D"];
@@ -378,7 +378,7 @@ function ItemCard({ it, index, rx, mv, setItem, onRemove, onMove }: {
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-bleu/20 text-[12px] font-bold text-bleu-2">{index + 1}</span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-semibold text-fog">{mv?.name ?? it.mv}</span>
-          <span className="block text-[12px] text-dim">{CATEGORY_LABEL[mv?.category ?? ""] ?? ""}</span>
+          <span className="block text-[12px] text-dim">{MODALITY_LABEL[mv?.modality ?? ""] ?? ""}</span>
         </span>
         {templateOf(rx).phases && (
           <div className="seg order-last w-full shrink-0 sm:order-none sm:w-auto">
@@ -513,11 +513,13 @@ function SetRow({ k, s, pctMode, setSet, onRemove }: { k: number; s: SetRx; pctM
 function MovementPicker({ movements, onPick }: { movements: Mv[]; onPick: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [mod, setMod] = useState("");
   const list = useMemo(() => {
     const s = q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
-    if (!s) return POPULAR.map((id) => movements.find((m) => m.id === id)).filter(Boolean) as Mv[];
-    return movements.filter((m) => (m.name + " " + m.id).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(s)).slice(0, 12);
-  }, [q, movements]);
+    const pool = mod ? movements.filter((m) => m.modality === mod) : movements;
+    if (!s && !mod) return POPULAR.map((id) => movements.find((m) => m.id === id)).filter(Boolean) as Mv[];
+    return pool.filter((m) => !s || (m.name + " " + m.id).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(s)).slice(0, s ? 12 : 60);
+  }, [q, mod, movements]);
   if (!open) return (
     <button type="button" onClick={() => setOpen(true)} className="ios-group ios-row w-full justify-center text-[15px] font-semibold text-bleu-2 hover:bg-white/[0.02]">+ Ajouter un mouvement</button>
   );
@@ -525,15 +527,25 @@ function MovementPicker({ movements, onPick }: { movements: Mv[]; onPick: (id: s
     <div className="ios-group">
       <div className="ios-row">
         <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un mouvement" className="min-w-0 flex-1 bg-transparent text-[15px] text-fog outline-none placeholder:text-dim" />
-        <button type="button" onClick={() => { setOpen(false); setQ(""); }} className="text-[14px] text-bleu-2">Annuler</button>
+        <button type="button" onClick={() => { setOpen(false); setQ(""); setMod(""); }} className="text-[14px] text-bleu-2">Annuler</button>
       </div>
-      {!q && <p className="px-4 pt-2 text-[12px] text-dim">Populaires</p>}
+      <div className="flex gap-1.5 px-4 pt-2.5">
+        {["", ...MODALITY_ORDER].map((k) => (
+          <button key={k} type="button" onClick={() => setMod(k)}
+            className={`rounded-full px-3 py-1 text-[12px] font-semibold transition ${mod === k ? "bg-fog text-canvas" : "bg-panel-3 text-muted hover:text-fog"}`}>
+            {k ? MODALITY_LABEL[k] : "Tous"}
+          </button>
+        ))}
+      </div>
+      {!q && !mod && <p className="px-4 pt-2 text-[12px] text-dim">Populaires</p>}
+      <div className={mod && !q ? "max-h-[360px] overflow-y-auto no-scrollbar" : ""}>
       {list.map((m) => (
         <button key={m.id} type="button" onClick={() => { onPick(m.id); setOpen(false); setQ(""); }} className="ios-row w-full text-left hover:bg-white/[0.03]">
           <span className="flex-1 text-[15px] text-fog">{m.name}</span>
-          <span className="text-[12px] text-dim">{CATEGORY_LABEL[m.category] ?? m.category}</span>
+          <span className="text-[12px] text-dim">{MODALITY_LABEL[m.modality ?? ""] ?? ""}</span>
         </button>
       ))}
+      </div>
       {!list.length && <p className="px-4 py-4 text-[14px] text-dim">Aucun mouvement. Ajoute-le dans Barèmes.</p>}
     </div>
   );

@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
-import { createMovement, saveAnchors, setMovementActive } from "@/app/actions/admin";
+import { createMovement, saveAnchors, setMovementActive, setMovementModality } from "@/app/actions/admin";
 import { FormMessage, Submit } from "@/components/forms";
-import { CATEGORY_LABEL, CATEGORY_ORDER, fmtTime } from "@/lib/format";
+import { CATEGORY_LABEL, CATEGORY_ORDER, MODALITY_LABEL, MODALITY_ORDER, fmtTime } from "@/lib/format";
 import type { Anchors, Movement, Workout } from "@/lib/types";
 
 const LV = [["100", "Games"], ["90", "Élite"], ["75", "RX"], ["60", "Inter"], ["40", "Fitness"]] as const;
@@ -12,7 +12,7 @@ const UNIT: Record<string, string> = { load: "kg", reps: "reps", time: "m:ss", d
 type W = Pick<Workout, "id" | "title" | "score_type" | "better" | "anchors_m" | "anchors_f" | "counts_in_level" | "source">;
 type Row = {
   kind: "movement" | "workout";
-  id: string; name: string; group: string; label: string; unit: string;
+  id: string; name: string; group: string; mod?: string; label: string; unit: string;
   isTime: boolean; anchors_m: Anchors | null; anchors_f: Anchors | null;
   weight?: number; active?: boolean; usage?: number;
 };
@@ -25,7 +25,7 @@ export function AnchorsBoard({ movements, workouts, usage }: { movements: Moveme
       anchors_m: w.anchors_m, anchors_f: w.anchors_f,
     })),
     ...movements.map((m) => ({
-      kind: "movement" as const, id: m.id, name: m.name, group: m.category, label: m.test_label ?? "", unit: UNIT[m.metric],
+      kind: "movement" as const, id: m.id, name: m.name, group: m.category, mod: m.modality, label: m.test_label ?? "", unit: UNIT[m.metric],
       isTime: m.metric === "time" && m.better === "lower", anchors_m: m.anchors_m, anchors_f: m.anchors_f,
       weight: Number(m.weight_in_level), active: m.active, usage: usage[m.id] ?? 0,
     })),
@@ -37,7 +37,7 @@ export function AnchorsBoard({ movements, workouts, usage }: { movements: Moveme
   const [open, setOpen] = useState<string | null>(null);
 
   const list = rows.filter((r) => {
-    if (cat && r.group !== cat) return false;
+    if (cat && (cat === "benchmark" ? r.group !== cat : r.mod !== cat)) return false;
     if (only === "with" && !(r.anchors_m && r.anchors_f)) return false;
     if (only === "without" && r.anchors_m && r.anchors_f) return false;
     return !q || r.name.toLowerCase().includes(q.toLowerCase());
@@ -50,7 +50,7 @@ export function AnchorsBoard({ movements, workouts, usage }: { movements: Moveme
         <select value={cat} onChange={(e) => setCat(e.target.value)} className="field">
           <option value="">Toutes catégories</option>
           <option value="benchmark">Benchmarks / qualifs</option>
-          {CATEGORY_ORDER.map((c) => <option key={c} value={c}>{CATEGORY_LABEL[c] ?? c}</option>)}
+          {MODALITY_ORDER.map((c) => <option key={c} value={c}>{MODALITY_LABEL[c]}</option>)}
         </select>
         <select value={only} onChange={(e) => setOnly(e.target.value as typeof only)} className="field">
           <option value="">Avec et sans barème</option>
@@ -65,7 +65,7 @@ export function AnchorsBoard({ movements, workouts, usage }: { movements: Moveme
               <span className={`h-2 w-2 shrink-0 rounded-full ${r.anchors_m && r.anchors_f ? "bg-lime" : "bg-line"}`} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold text-fog">{r.name}</span>
-                <span className="block truncate text-xs text-dim">{r.group === "benchmark" ? r.label : `${CATEGORY_LABEL[r.group] ?? r.group} · ${r.label}`}</span>
+                <span className="block truncate text-xs text-dim">{r.group === "benchmark" ? r.label : `${MODALITY_LABEL[r.mod ?? ""] ?? ""} · ${CATEGORY_LABEL[r.group] ?? r.group} · ${r.label}`}</span>
               </span>
               {r.anchors_m && <span className="hidden text-xs tabular-nums text-muted md:block">H : {show(r.anchors_m["100"], r.isTime)} / F : {show(r.anchors_f?.["100"], r.isTime)} {r.isTime ? "" : r.unit}</span>}
               {r.usage != null && <span className="text-xs text-dim">{r.usage} perf{r.usage > 1 ? "s" : ""}</span>}
@@ -123,6 +123,16 @@ function Editor({ row }: { row: Row }) {
             <span className="text-xs text-dim">(0,1 à 1)</span>
           </label>
         )}
+        {row.kind === "movement" && (
+          <div className="flex items-center gap-1 rounded-full bg-panel-3 p-0.5">
+            {MODALITY_ORDER.map((k) => (
+              <button key={k} type="button" disabled={pending} onClick={() => start(() => setMovementModality(row.id, k))}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${row.mod === k ? "bg-fog text-canvas" : "text-muted hover:text-fog"}`}>
+                {MODALITY_LABEL[k]}
+              </button>
+            ))}
+          </div>
+        )}
         <span className="flex-1" />
         {row.kind === "movement" && (
           <button type="button" disabled={pending} onClick={() => start(() => setMovementActive(row.id, !row.active))} className="btn-ghost py-2 text-xs">
@@ -142,7 +152,10 @@ export function NewMovement() {
   const [metric, setMetric] = useState("load");
   return (
     <form action={action} className="grid gap-3 md:grid-cols-3">
-      <input name="name" placeholder="Nom (ex. Seated box jump)" required className="field md:col-span-2" />
+      <input name="name" placeholder="Nom (ex. Seated box jump)" required className="field" />
+      <select name="modality" className="field" defaultValue="gym">
+        {MODALITY_ORDER.map((c) => <option key={c} value={c}>{MODALITY_LABEL[c]}</option>)}
+      </select>
       <select name="category" className="field" defaultValue="renfo">
         {CATEGORY_ORDER.map((c) => <option key={c} value={c}>{CATEGORY_LABEL[c] ?? c}</option>)}
       </select>

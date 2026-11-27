@@ -214,12 +214,14 @@ export async function createMovement(_: AdminState, f: FormData): Promise<AdminS
   const metric = str(f, "metric");
   if (!name) return { error: "Nom obligatoire." };
   if (!CATEGORIES.includes(category)) return { error: "Catégorie invalide." };
+  const modality = str(f, "modality");
+  if (!["gym", "halt", "mono"].includes(modality)) return { error: "Famille invalide." };
   if (!METRICS.includes(metric)) return { error: "Mesure invalide." };
   const id = name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   if (!id) return { error: "Nom invalide." };
   const holdTime = metric === "time" && f.get("time_higher") === "on";
   const { error } = await db().from("movements").insert({
-    id, name, category, metric,
+    id, name, category, modality, metric,
     family: str(f, "family") || null,
     equipment: str(f, "equipment") || null,
     test_label: str(f, "test_label") || null,
@@ -234,6 +236,13 @@ export async function createMovement(_: AdminState, f: FormData): Promise<AdminS
 export async function setMovementActive(id: string, active: boolean) {
   await requireAdmin();
   await db().from("movements").update({ active }).eq("id", id);
+  revalidatePath("/", "layout");
+}
+
+export async function setMovementModality(id: string, modality: string) {
+  await requireAdmin();
+  if (!["gym", "halt", "mono"].includes(modality)) return;
+  await db().from("movements").update({ modality }).eq("id", id);
   revalidatePath("/", "layout");
 }
 

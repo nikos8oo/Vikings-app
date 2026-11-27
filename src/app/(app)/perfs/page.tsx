@@ -15,7 +15,7 @@ export default async function Perfs() {
     const b = mov.get(m.id);
     const v = b ? Number(b.value) : null;
     return {
-      id: m.id, name: m.name, category: m.category, family: m.family, label: m.test_label,
+      id: m.id, name: m.name, category: m.category, modality: m.modality, family: m.family, label: m.test_label,
       scored: !!m.anchors_m, best: v != null ? fmtMetric(v, m.metric) : null,
       score: v != null ? scoreFrom(v, anchorsFor(m, me.sex), m.better) : null,
     };

@@ -66,6 +66,15 @@ export const CATEGORY_LABEL: Record<string, string> = {
   strongman: "Strongman",
 };
 
+/** Trois grandes familles : poids de corps / charge externe / cardio. */
+export const MODALITY_LABEL: Record<string, string> = { gym: "Gym", halt: "Haltéro", mono: "Monostructural" };
+export const MODALITY_HINT: Record<string, string> = {
+  gym: "Poids de corps",
+  halt: "Barre, haltères, KB, charge externe",
+  mono: "Course, ergos, corde à sauter, cardio",
+};
+export const MODALITY_ORDER = ["gym", "halt", "mono"] as const;
+
 export const CATEGORY_ORDER = ["halterophilie", "force", "gymnastique", "engine", "haltere_kb", "renfo", "core", "strongman"];
 
 export function fmtDate(d: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" }) {
