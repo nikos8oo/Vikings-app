@@ -29,13 +29,3 @@ export async function updateProfile(_: ProfileState, f: FormData): Promise<Profi
   return { ok: "Profil mis à jour." };
 }
 
-import { allowedTrackKeys } from "@/lib/tracks";
-
-/** Programmes suivis (affichés sur le calendrier de l'accueil). */
-export async function updateTracks(tracks: string[]) {
-  const me = await requireMe();
-  const allowed = allowedTrackKeys(me);
-  const clean = [...new Set(tracks.filter((t) => allowed.includes(t)))];
-  await db().from("athletes").update({ tracks: clean.length ? clean : allowed }).eq("id", me.id);
-  revalidatePath("/", "layout");
-}

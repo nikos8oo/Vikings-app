@@ -5,9 +5,8 @@ import { db } from "@/lib/db";
 import { fmtDate, fmtMetric, fmtScore, todayParis } from "@/lib/format";
 import { formatLabel } from "@/lib/prescription";
 import { blockStyle, colorHex } from "@/lib/colors";
-import { allowedTrackKeys, DEFAULT_TRACKS, FOLLOWABLE, parseTrack, sourcesOf, trackKey, visibleSources } from "@/lib/tracks";
+import { allowedTrackKeys, FOLLOWABLE, parseTrack, sourcesOf, trackKey, visibleSources } from "@/lib/tracks";
 import { monthGrid, TrainingCalendar, type DayMark } from "@/components/TrainingCalendar";
-import { TrackPicker } from "@/components/TrackPicker";
 import { DOMAINS, nextTier, tierOf } from "@/lib/scoring";
 import { requireMe } from "@/lib/session";
 import type { Result, Workout } from "@/lib/types";
@@ -22,9 +21,9 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
   const { bienvenue, d } = await searchParams;
   const today = todayParis();
   const selected = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : today;
-  const allowed = allowedTrackKeys(me);
-  const chosen = (me.tracks?.length ? me.tracks : DEFAULT_TRACKS).filter((t) => allowed.includes(t));
-  const tracks = chosen.length ? chosen : allowed;
+  // l'athlète voit tout ce qui correspond à ses programmes affectés (Compétition et/ou Affiliates avec toutes les spés)
+  const tracks = allowedTrackKeys(me);
+  const programs = visibleSources(me).filter((x) => x === "competition" || x === "affiliates");
   const { from, to } = monthGrid(selected);
   const [results, movements, monthRes] = await Promise.all([
     getResults(me.id),
@@ -63,10 +62,15 @@ export default async function Accueil({ searchParams }: { searchParams: Promise<
       <div className="grid gap-5 md:grid-cols-[340px_minmax(0,1fr)] md:items-start">
         <div className="rise rise-1 grid gap-3 md:sticky md:top-6">
           <TrainingCalendar selected={selected} today={today} marks={marks} />
-          <details className="card px-4 py-3">
-            <summary className="cursor-pointer text-[13px] font-semibold text-muted">Mes programmes · {tracks.length}</summary>
-            <div className="mt-3"><TrackPicker tracks={tracks} programs={visibleSources(me)} /></div>
-          </details>
+          <div className="card px-4 py-3">
+            <p className="text-[12px] font-semibold text-muted">Mes programmes</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {programs.includes("competition") && <span className="rounded-full border border-lime/50 bg-lime/15 px-3 py-1 text-[12px] font-semibold text-lime">Vikings Compétition</span>}
+              {programs.includes("affiliates") && <span className="rounded-full border border-bleu bg-bleu/15 px-3 py-1 text-[12px] font-semibold text-[#9fb5ff]">Vikings Affiliates · toutes les spés</span>}
+              <span className="rounded-full border border-line px-3 py-1 text-[12px] font-semibold text-muted">Qualifs</span>
+            </div>
+            <p className="mt-2 text-[11px] text-dim">Attribués par l&apos;équipe Vikings.</p>
+          </div>
         </div>
 
         <div className="rise rise-2 grid content-start gap-5">
