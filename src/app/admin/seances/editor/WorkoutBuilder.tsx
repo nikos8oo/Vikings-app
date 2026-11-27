@@ -14,6 +14,13 @@ export type Mv = { id: string; name: string; category: string; metric: string; m
 const SOURCES = [["competition", "Compétition"], ["affiliates", "Affiliates"], ["qualif", "Qualif"], ["benchmark", "Benchmark"]] as const;
 const BLOCKS = ["", "A", "B", "C", "D"];
 const LV = [["100", "Games"], ["90", "Élite"], ["75", "RX"], ["60", "Inter"], ["40", "Fitness"]] as const;
+/** Titres de blocs les plus utilisés dans la prog Vikings (repris de Strivee). */
+const TITLE_PRESETS = [
+  "Warm Up", "Weightlifting", "Lower Strength", "Upper Strength", "Gymnastic", "Gymnastic & Press", "Skill Prep",
+  "Conditioning", "Metcon", "WOD du Samedi", "Team WOD", "Engine", "Renfo", "Iron Core", "Mobility Flow",
+  "Spé Haltérophilie", "Spé Gymnastique", "Spé Functional Bodybuilding", "Spé Engine", "Extra – Upper Strength",
+];
+
 const POPULAR = ["back-squat", "deadlift", "clean", "snatch", "thruster", "kipping-pull-up", "double-under", "wall-ball", "row", "run", "burpee", "toes-to-bar"];
 
 type Field = "load" | "reps" | "cal" | "dist" | "time" | "height";
@@ -35,6 +42,7 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
   const mmap = useMemo(() => new Map(movements.map((m) => [m.id, m])), [movements]);
   const nameOf = (id: string) => mmap.get(id)?.name ?? id;
 
+  const [title, setTitle] = useState<string>(w?.title ?? "");
   const [source, setSource] = useState<string>(w?.source === "vikings" ? "competition" : w?.source ?? defaults?.source ?? "competition");
   const [subtrack, setSubtrack] = useState<string>(w?.subtrack ?? defaults?.subtrack ?? "crossfit");
   const [color, setColor] = useState<string>(w?.color ?? "");
@@ -129,7 +137,14 @@ export function WorkoutBuilder({ w, movements, today, defaults, returnTo }: {
           <h2 className="ios-head">Séance</h2>
           <div className="ios-group">
             <label className="ios-row"><span className="ios-label">Titre</span>
-              <input name="title" defaultValue={w?.title} required placeholder="Hiver S5 · Jeudi" className="ios-input" /></label>
+              <input name="title" value={title} onChange={(e) => setTitle(e.target.value)} required list="va-titles" placeholder="Choisis ou écris un titre" className="ios-input" /></label>
+            <datalist id="va-titles">{TITLE_PRESETS.map((t) => <option key={t} value={t} />)}</datalist>
+            <div className="flex flex-wrap gap-1.5 border-b border-line px-4 py-2.5">
+              {TITLE_PRESETS.map((t) => (
+                <button key={t} type="button" onClick={() => setTitle(t)}
+                  className={`rounded-full px-2.5 py-1 text-[12px] font-medium transition ${title === t ? "bg-fog text-canvas" : "bg-panel-3 text-muted hover:text-fog"}`}>{t}</button>
+              ))}
+            </div>
             <label className="ios-row"><span className="ios-label">Date</span>
               <input name="workout_date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="ios-input [color-scheme:dark]" /></label>
             <div className="ios-row justify-between"><span className="ios-label">Partie</span>
