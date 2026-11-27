@@ -11,7 +11,7 @@ const ICON: Record<string, React.ReactNode> = {
   "/admin/baremes": <><path d="M4 20h16M7 16V9M12 16V5M17 16v-4" /></>,
 };
 
-export function AdminNav({ admin, side = false }: { admin: boolean; side?: boolean }) {
+export function AdminNav({ admin, side = false, top = false }: { admin: boolean; side?: boolean; top?: boolean }) {
   const path = usePathname();
   const items = [
     ["/admin", "Tableau de bord"],
@@ -26,6 +26,16 @@ export function AdminNav({ admin, side = false }: { admin: boolean; side?: boole
       {items.map(([h, l]) => (
         <Link key={h} href={h} className={`flex items-center gap-3 rounded-[10px] px-3 py-2 text-[14px] font-medium transition ${on(h) ? "bg-panel-3 text-fog" : "text-muted hover:bg-white/[0.03] hover:text-fog"}`}>
           <svg viewBox="0 0 24 24" className={`h-[18px] w-[18px] ${on(h) ? "text-lime" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{ICON[h]}</svg>
+          {l}
+        </Link>
+      ))}
+    </nav>
+  );
+  if (top) return (
+    <nav className="flex items-center gap-1">
+      {items.map(([h, l]) => (
+        <Link key={h} href={h} className={`flex items-center gap-2 rounded-[10px] px-3 py-1.5 text-[14px] font-medium transition ${on(h) ? "bg-panel-3 text-fog" : "text-muted hover:text-fog"}`}>
+          <svg viewBox="0 0 24 24" className={`h-[16px] w-[16px] ${on(h) ? "text-lime" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{ICON[h]}</svg>
           {l}
         </Link>
       ))}
