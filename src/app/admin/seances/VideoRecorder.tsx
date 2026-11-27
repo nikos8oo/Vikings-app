@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { prepareVideoUpload, saveVideoBlock } from "@/app/actions/video";
 
-const MAX_S = 6 * 60;            // 6 min ≈ 45 Mo à 1 Mb/s : sous la limite de 50 Mo
-const MAX_BYTES = 50 * 1024 * 1024;
+const MAX_S = 15 * 60;           // 15 min ≈ 115 Mo à 1 Mb/s
+const MAX_BYTES = 200 * 1024 * 1024;
 const pickMime = () => ["video/mp4;codecs=avc1,mp4a", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
   .find((m) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m)) ?? "video/webm";
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -102,13 +102,13 @@ function Recorder({ track, date, trackName, onClose }: { track: string; date: st
 
   const send = async () => {
     if (!blob) return;
-    if (blob.size > MAX_BYTES) return setErr("La vidéo dépasse 50 Mo. Enregistre plus court (6 min max).");
+    if (blob.size > MAX_BYTES) return setErr("La vidéo dépasse 200 Mo. Enregistre plus court (15 min max).");
     setErr(""); setStep("sending");
     const prep = await prepareVideoUpload(blob.type);
     if ("error" in prep) { setErr(prep.error); setStep("review"); return; }
     const sb = createClient(prep.url, prep.key, { auth: { persistSession: false, autoRefreshToken: false } });
     const up = await sb.storage.from("videos").uploadToSignedUrl(prep.path, prep.token, blob, { contentType: blob.type });
-    if (up.error) { setErr("L'envoi a échoué. Vérifie ta connexion et réessaie."); setStep("review"); return; }
+    if (up.error) { setErr(/size|large|413/i.test(up.error.message) ? "Vidéo trop lourde pour la limite d'envoi du projet Supabase (Storage → Settings → Upload file size limit)." : "L'envoi a échoué. Vérifie ta connexion et réessaie."); setStep("review"); return; }
     const res = await saveVideoBlock({ track, date: day, title, note, path: prep.path });
     if ("error" in res) { setErr(res.error); setStep("review"); return; }
     close();
@@ -134,7 +134,7 @@ function Recorder({ track, date, trackName, onClose }: { track: string; date: st
               </span>
               <div>
                 <p className="text-[17px] font-semibold text-fog">Présente ton cycle en vidéo</p>
-                <p className="mx-auto mt-1 max-w-sm text-[13px] text-muted">Le navigateur va te demander l&apos;accès à la caméra et au micro. Jusqu&apos;à 6 minutes, publiée dans le planning comme un bloc.</p>
+                <p className="mx-auto mt-1 max-w-sm text-[13px] text-muted">Le navigateur va te demander l&apos;accès à la caméra et au micro. Jusqu&apos;à 15 minutes, publiée dans le planning comme un bloc.</p>
               </div>
               <button type="button" onClick={startCamera} className="btn-lime px-5 py-2.5">Activer caméra et micro</button>
               <label className="cursor-pointer text-[13px] font-medium text-bleu-2 hover:underline">
