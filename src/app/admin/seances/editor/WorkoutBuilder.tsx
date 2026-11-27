@@ -16,8 +16,9 @@ const BLOCKS = ["", "A", "B", "C", "D"];
 const LV = [["100", "Games"], ["90", "Élite"], ["75", "RX"], ["60", "Inter"], ["40", "Fitness"]] as const;
 const POPULAR = ["back-squat", "deadlift", "clean", "snatch", "thruster", "kipping-pull-up", "double-under", "wall-ball", "row", "run", "burpee", "toes-to-bar"];
 
-type Field = "reps" | "cal" | "dist" | "time" | "height";
-const LABEL: Record<Field, string> = { reps: "Répétitions", cal: "Calories", dist: "Distance", time: "Temps", height: "Hauteur" };
+type Field = "load" | "reps" | "cal" | "dist" | "time" | "height";
+const ALL_FIELDS: Field[] = ["load", "reps", "cal", "dist", "time", "height"];
+const LABEL: Record<Field, string> = { load: "Charge", reps: "Répétitions", cal: "Calories", dist: "Distance", time: "Temps", height: "Hauteur" };
 const FIELDS: { k: Field; label: string; unit: string; m: "reps" | "cal" | "dist_m" | "time_s"; f?: "cal_f" | "dist_f"; hf?: boolean }[] = [
   { k: "reps", label: "Répétitions", unit: "reps", m: "reps" },
   { k: "cal", label: "Calories", unit: "cal", m: "cal", f: "cal_f", hf: true },
@@ -360,17 +361,45 @@ function ItemCard({ it, index, rx, mv, setItem, onRemove, onMove }: {
 }) {
   const isSets = rx.format === "sets" || rx.format === "max";
   const [pctMode, setPctMode] = useState<boolean>(() => (isSets ? (it.sets ?? []).some((s) => s.pct != null) || !(it.sets ?? []).some((s) => s.kg_m != null) : it.pct != null));
-  const hasValue = (k: Field) => (k === "reps" ? it.reps != null : k === "cal" ? it.cal != null || it.cal_f != null : k === "dist" ? it.dist_m != null || it.dist_f != null : k === "time" ? it.time_s != null : it.height_cm != null);
+  const hasValue = (k: Field) => (k === "load" ? it.kg_m != null || it.kg_f != null || it.pct != null : k === "reps" ? it.reps != null : k === "cal" ? it.cal != null || it.cal_f != null : k === "dist" ? it.dist_m != null || it.dist_f != null : k === "time" ? it.time_s != null : it.height_cm != null);
   const [shown, setShown] = useState<Field[]>(() => {
-    const filled = (["reps", "cal", "dist", "time", "height"] as Field[]).filter(hasValue);
+    const filled = ALL_FIELDS.filter(hasValue);
     if (filled.length) return filled;
+    const mod = mv?.modality ?? (mv?.category === "engine" ? "mono" : "gym");
+    const tall: Field[] = mv?.metric === "height" || /box|wall-ball/.test(it.mv) ? ["height"] : [];
+    // Haltéro : charge / % d'abord · Gym : volume de reps · Monostructural : cal ou distance
+    if (mod === "halt") return ["load", "reps", ...tall];
     if (rx.format === "death_by") return ["reps"];
-    return mv?.category === "engine" ? (mv.metric === "calories" ? ["cal"] : ["dist"]) : mv?.metric === "height" || /box|wall-ball/.test(it.mv) ? ["reps", "height"] : ["reps"];
+    if (mod === "mono") return mv?.metric === "calories" ? ["cal"] : mv?.metric === "distance" ? ["dist"] : ["reps"];
+    return ["reps", ...tall];
   });
-  const hidden = (["reps", "cal", "dist", "time", "height"] as Field[]).filter((k) => !shown.includes(k));
+  const hidden = ALL_FIELDS.filter((k) => !shown.includes(k));
+  const chips = rx.format === "tabata" || rx.format === "death_by" ? hidden.filter((k) => k === "load" || k === "height") : hidden;
+  const loadFirst = shown.includes("load") && mv?.modality === "halt";
   const up = (p: Partial<Item>) => setItem(index, p);
   const sets = it.sets ?? [];
   const setSet = (k: number, p: Partial<SetRx>) => up({ sets: sets.map((s, j) => (j === k ? { ...s, ...p } : s)) });
+  const loadRow = (
+          <div className="ios-row">
+            <span className="ios-label">Charge</span>
+            {pctMode ? (
+              <span className="flex flex-1 items-center justify-end gap-1.5">
+                <input value={show(it.pct)} inputMode="decimal" placeholder="—" onChange={(e) => up({ pct: num(e.target.value), kg_m: null, kg_f: null })} className="ios-cell w-20" />
+              </span>
+            ) : (
+              <span className="flex flex-1 items-center justify-end gap-1.5">
+                <input value={show(it.kg_m)} inputMode="decimal" placeholder="H" onChange={(e) => up({ kg_m: num(e.target.value), pct: null })} className="ios-cell w-20" />
+                <span className="text-dim">/</span>
+                <input value={show(it.kg_f)} inputMode="decimal" placeholder="F" onChange={(e) => up({ kg_f: num(e.target.value), pct: null })} className="ios-cell w-20" />
+              </span>
+            )}
+            <div className="seg shrink-0">
+              <button type="button" aria-pressed={!pctMode} onClick={() => setPctMode(false)} className="seg-btn px-2.5">kg</button>
+              <button type="button" aria-pressed={pctMode} onClick={() => setPctMode(true)} className="seg-btn px-2.5">%</button>
+            </div>
+            {!hasValue("load") && shown.length > 1 && <button type="button" onClick={() => setShown(shown.filter((x) => x !== "load"))} className="text-dim" aria-label="Masquer">×</button>}
+          </div>
+  );
 
   return (
     <div className="ios-group">
@@ -434,6 +463,7 @@ function ItemCard({ it, index, rx, mv, setItem, onRemove, onMove }: {
         </div>
       ) : (
         <>
+          {loadFirst && loadRow}
           {rx.format !== "tabata" && FIELDS.filter((f) => shown.includes(f.k)).map((f) => (
             <div key={f.k} className="ios-row">
               <span className="ios-label">{rx.format === "death_by" && f.k === "reps" ? (templateOf(rx).id === "death_by_weight" ? "Reps par intervalle" : "Reps ajoutées / intervalle") : f.label}</span>
@@ -454,32 +484,15 @@ function ItemCard({ it, index, rx, mv, setItem, onRemove, onMove }: {
               {!hasValue(f.k) && shown.length > 1 && <button type="button" onClick={() => setShown(shown.filter((x) => x !== f.k))} className="text-dim" aria-label="Masquer">×</button>}
             </div>
           ))}
-          <div className="ios-row">
-            <span className="ios-label">Charge</span>
-            {pctMode ? (
-              <span className="flex flex-1 items-center justify-end gap-1.5">
-                <input value={show(it.pct)} inputMode="decimal" placeholder="—" onChange={(e) => up({ pct: num(e.target.value), kg_m: null, kg_f: null })} className="ios-cell w-20" />
-              </span>
-            ) : (
-              <span className="flex flex-1 items-center justify-end gap-1.5">
-                <input value={show(it.kg_m)} inputMode="decimal" placeholder="H" onChange={(e) => up({ kg_m: num(e.target.value), pct: null })} className="ios-cell w-20" />
-                <span className="text-dim">/</span>
-                <input value={show(it.kg_f)} inputMode="decimal" placeholder="F" onChange={(e) => up({ kg_f: num(e.target.value), pct: null })} className="ios-cell w-20" />
-              </span>
-            )}
-            <div className="seg shrink-0">
-              <button type="button" aria-pressed={!pctMode} onClick={() => setPctMode(false)} className="seg-btn px-2.5">kg</button>
-              <button type="button" aria-pressed={pctMode} onClick={() => setPctMode(true)} className="seg-btn px-2.5">%</button>
-            </div>
-          </div>
+          {shown.includes("load") && !loadFirst && loadRow}
           {shown.includes("height") && (
             <label className="ios-row"><span className="ios-label">Hauteur / cible</span>
               <input value={show(it.height_cm)} inputMode="numeric" placeholder="—" onChange={(e) => up({ height_cm: num(e.target.value) })} className="ios-input" />
               <span className="text-[15px] text-dim">cm</span></label>
           )}
-          {rx.format !== "tabata" && rx.format !== "death_by" && hidden.length > 0 && (
+          {chips.length > 0 && (
             <div className="flex flex-wrap gap-2 px-4 py-2.5">
-              {hidden.map((k) => (
+              {chips.map((k) => (
                 <button key={k} type="button" onClick={() => setShown([...shown, k])} className="rounded-full bg-panel-3 px-3 py-1.5 text-[13px] font-medium text-bleu-2">+ {LABEL[k]}</button>
               ))}
             </div>
